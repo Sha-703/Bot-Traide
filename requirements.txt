@@ -1,0 +1,6 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-dotenv>=1.0
+websockets>=12.0   # optionnel : uniquement pour le flux réel
+playwright>=1.49   # optionnel : connexion supervisée via votre navigateur (Edge)
+pytest>=8.0        # tests locaux

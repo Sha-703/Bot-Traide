@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pocket Lab — Console de trading supervisé</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1017'/%3E%3Cpath d='M8 22 L13 15 L18 19 L24 9' stroke='%2334e5a3' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<div class="ambient" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="28" height="28">
+        <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#lg)" stroke="#1f2b3a"/>
+        <path d="M8 22 L13 15 L18 19 L24 9" stroke="#34e5a3" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="24" cy="9" r="2.2" fill="#34e5a3"/>
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#16212e"/><stop offset="1" stop-color="#0d141d"/>
+        </linearGradient></defs>
+      </svg>
+    </span>
+    <div class="brand-text">
+      <h1>Pocket&nbsp;Lab</h1>
+      <p>Console de trading supervisé — environnement isolé</p>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span class="pill" id="pill-mode" data-mode="DEMO"><i class="dot"></i><b>DÉMO</b></span>
+    <span class="pill" id="pill-connexion"><i class="dot"></i><span>connexion…</span></span>
+    <span class="pill" id="pill-session"><i class="dot"></i><span>session : aucune</span></span>
+    <span class="pill" id="pill-actif">—</span>
+    <span class="pill mono" id="pill-uptime">00:00:00</span>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="btn-pause" type="button">Mettre en pause</button>
+    <button class="btn ghost" id="btn-connexion" type="button">Connexion</button>
+    <button class="btn ghost" id="btn-reglages" type="button">Réglages</button>
+    <a class="btn ghost" href="/api/trades.csv" download>CSV</a>
+  </div>
+</header>
+
+<main>
+  <!-- ---------------------------------------------------------------- -->
+  <section class="kpis" aria-label="Indicateurs clés">
+    <article class="kpi">
+      <span class="kpi-label">Capital</span>
+      <span class="kpi-value mono" id="kpi-capital">—</span>
+      <span class="kpi-sub" id="kpi-capital-sub">solde simulé</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi-label">P&amp;L session</span>
+      <span class="kpi-value mono" id="kpi-pnl">—</span>
+      <span class="kpi-sub" id="kpi-pnl-sub">0,00 %</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi-label">Taux de réussite</span>
+      <span class="kpi-value mono" id="kpi-taux">—</span>
+      <span class="kpi-sub" id="kpi-taux-sub">0 gagnant / 0 perdant</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi-label">Trades</span>
+      <span class="kpi-value mono" id="kpi-trades">—</span>
+      <span class="kpi-sub" id="kpi-trades-sub">quota journalier</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi-label">Drawdown max</span>
+      <span class="kpi-value mono" id="kpi-dd">—</span>
+      <span class="kpi-sub">plus forte baisse du solde</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi-label">Ratio gain / perte</span>
+      <span class="kpi-value mono" id="kpi-rr">—</span>
+      <span class="kpi-sub" id="kpi-expectance">espérance par trade</span>
+    </article>
+  </section>
+
+  <!-- ---------------------------------------------------------------- -->
+  <section class="layout">
+    <div class="col main-col">
+      <article class="card chart-card">
+        <header class="card-head">
+          <div>
+            <h2>Courbe de capital</h2>
+            <p class="muted">Évolution du solde simulé, trade par trade</p>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><i class="swatch accent"></i>Solde</span>
+            <span class="legend-item"><i class="swatch dashed"></i>Capital initial</span>
+          </div>
+        </header>
+        <div class="chart-wrap" id="wrap-equity">
+          <svg id="chart-equity" role="img" aria-label="Courbe de capital"></svg>
+          <div class="chart-empty" id="empty-equity">En attente des premiers trades…</div>
+          <div class="chart-tip" id="tip-equity" hidden></div>
+        </div>
+      </article>
+
+      <article class="card chart-card">
+        <header class="card-head">
+          <div>
+            <h2>Prix &amp; moyennes exponentielles</h2>
+            <p class="muted">
+              Croisement EMA rapide / lente — matière première des signaux
+              <span id="chauffe" class="chauffe">· chauffe en cours</span>
+            </p>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><i class="swatch price"></i>Prix</span>
+            <span class="legend-item"><i class="swatch fast"></i><span id="legend-fast">EMA 9</span></span>
+            <span class="legend-item"><i class="swatch slow"></i><span id="legend-slow">EMA 21</span></span>
+          </div>
+        </header>
+        <div class="chart-wrap tall" id="wrap-price">
+          <svg id="chart-price" role="img" aria-label="Prix et moyennes mobiles"></svg>
+          <div class="chart-empty" id="empty-price">Collecte des prix en cours…</div>
+        </div>
+      </article>
+
+      <article class="card table-card">
+        <header class="card-head">
+          <div>
+            <h2>Journal des trades</h2>
+            <p class="muted">
+              <span id="table-count">0</span> trade(s) enregistré(s) —
+              fichier <code>journal/trades.csv</code>
+            </p>
+          </div>
+          <a class="btn ghost small" href="/api/trades.csv" download>Télécharger</a>
+        </header>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Heure</th>
+                <th>Actif</th>
+                <th>Direction</th>
+                <th class="num">Montant</th>
+                <th class="num">Entrée</th>
+                <th class="num">Sortie</th>
+                <th>Résultat</th>
+                <th class="num">P&amp;L</th>
+                <th class="num">Solde</th>
+              </tr>
+            </thead>
+            <tbody id="rows-trades">
+              <tr class="placeholder"><td colspan="9">Aucun trade pour le moment — premier signal après la chauffe des moyennes mobiles.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+
+    <aside class="col side-col">
+      <article class="card risk-card">
+        <header class="card-head">
+          <div>
+            <h2>Garde-fous</h2>
+            <p class="muted">Vérifiés avant chaque ordre</p>
+          </div>
+          <span class="badge-soft" id="risk-jour">—</span>
+        </header>
+
+        <div class="gauge">
+          <div class="gauge-head">
+            <span>Perte journalière</span>
+            <span class="mono" id="risk-perte-label">0,00 $ / 30,00 $</span>
+          </div>
+          <div class="bar"><span id="risk-perte-bar" style="width:0%"></span></div>
+          <p class="hint" id="risk-perte-hint">Aucune perte engagée.</p>
+        </div>
+
+        <div class="gauge">
+          <div class="gauge-head">
+            <span>Trades du jour</span>
+            <span class="mono" id="risk-trades-label">0 / 20</span>
+          </div>
+          <div class="segments" id="risk-segments"></div>
+        </div>
+
+        <dl class="mini-grid">
+          <div><dt>Budget / trade</dt><dd class="mono" id="risk-budget">—</dd></div>
+          <div><dt>Plafond position</dt><dd class="mono" id="risk-plafond">—</dd></div>
+          <div><dt>Risque par trade</dt><dd class="mono" id="risk-fraction">—</dd></div>
+          <div><dt>Série perdante</dt><dd class="mono" id="risk-serie">0</dd></div>
+        </dl>
+
+        <div class="card-actions">
+          <button class="btn ghost small" id="btn-campagne" type="button">Nouvelle campagne</button>
+          <button class="btn ghost small" id="btn-reset" type="button">Tout réinitialiser</button>
+          <span class="hint" id="campagne-note">Archive le journal et remet le solde à zéro.</span>
+        </div>
+      </article>
+
+      <article class="card signal-card" id="signal-card">
+        <header class="card-head">
+          <div>
+            <h2>Dernier signal</h2>
+            <p class="muted" id="signal-raison">En attente d'un croisement validé…</p>
+          </div>
+        </header>
+        <div class="signal-body">
+          <span class="signal-chip" id="signal-chip" data-dir="NEUTRE">NEUTRE</span>
+          <div class="signal-meta">
+            <span class="mono" id="signal-prix">—</span>
+            <small>prix actuel · écart <b id="signal-ecart">0</b> bps · <b id="signal-tendance">—</b></small>
+          </div>
+        </div>
+        <div class="ema-row">
+          <div><span>EMA rapide</span><b class="mono" id="ema-r">—</b></div>
+          <div><span>EMA lente</span><b class="mono" id="ema-l">—</b></div>
+        </div>
+      </article>
+
+      <article class="card order-card" id="order-card" hidden>
+        <header class="card-head">
+          <div>
+            <h2>Position ouverte</h2>
+            <p class="muted" id="order-meta">—</p>
+          </div>
+          <span class="signal-chip small" id="order-dir">—</span>
+        </header>
+        <div class="bar accent"><span id="order-bar" style="width:0%"></span></div>
+        <div class="order-foot">
+          <span class="mono" id="order-countdown">0s</span>
+          <span class="muted mono" id="order-entry">—</span>
+        </div>
+      </article>
+
+      <article class="card feed-card">
+        <header class="card-head">
+          <div>
+            <h2>Flux d'événements</h2>
+            <p class="muted">Traçabilité de la session</p>
+          </div>
+          <span class="live"><i></i>live</span>
+        </header>
+        <ul class="feed" id="feed">
+          <li class="feed-empty">Aucun événement pour l'instant.</li>
+        </ul>
+      </article>
+    </aside>
+  </section>
+</main>
+
+<footer class="disclaimer">
+  <strong>Avertissement.</strong> Ce projet est un outil pédagogique de simulation.
+  Aucune rentabilité n'est promise ni suggérée : les produits binaires à effet de levier
+  peuvent entraîner la perte totale du capital. Le trading via des API non officielles
+  peut violer les conditions d'utilisation de la plateforme. Vous restez seul responsable
+  de vos décisions et de l'usage de ce code.
+</footer>
+
+<!-- ------------------------------------------------------------------ -->
+<!-- Réglages : mise, garde-fous, mode                                   -->
+<!-- ------------------------------------------------------------------ -->
+<dialog id="modal-reglages" class="modal" aria-labelledby="rg-titre">
+  <div class="modal-card">
+    <header class="modal-head">
+      <div>
+        <h2 id="rg-titre">Réglages de la session</h2>
+        <p class="muted">Appliqués immédiatement, sans redémarrer la console.</p>
+      </div>
+      <button class="icon-btn" type="button" data-fermer aria-label="Fermer">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <fieldset class="groupe">
+        <legend>Mise et plafonds</legend>
+        <div class="champs">
+          <label class="champ">
+            <span>Mise par trade <em>$</em></span>
+            <input id="rg-montant" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" />
+            <small>Montant engagé sur chaque signal validé.</small>
+          </label>
+          <label class="champ">
+            <span>Plafond de position <em>$</em></span>
+            <input id="rg-plafond" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" />
+            <small>Aucun ordre ne peut dépasser ce montant.</small>
+          </label>
+          <label class="champ">
+            <span>Risque par trade <em>%</em></span>
+            <input id="rg-fraction" type="number" min="0.1" max="10" step="0.1" inputmode="decimal" />
+            <small>Part du capital mobilisable par position (max 10 %).</small>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="groupe">
+        <legend>Garde-fous</legend>
+        <div class="champs">
+          <label class="champ">
+            <span>Perte max / jour <em>$</em></span>
+            <input id="rg-perte" type="number" min="1" max="100000" step="1" inputmode="decimal" />
+            <small>Au-delà, le trading est suspendu jusqu'au lendemain.</small>
+          </label>
+          <label class="champ">
+            <span>Trades max / jour</span>
+            <input id="rg-trades" type="number" min="1" max="500" step="1" inputmode="numeric" />
+            <small>Quota atteint, la boucle s'arrête d'elle-même.</small>
+          </label>
+          <label class="champ">
+            <span>Expiration <em>s</em></span>
+            <input id="rg-expiration" type="number" min="5" max="3600" step="1" inputmode="numeric" />
+            <small>Durée de vie d'un ordre binaire.</small>
+          </label>
+          <label class="champ">
+            <span>Payout <em>%</em></span>
+            <input id="rg-payout" type="number" min="5" max="99" step="0.5" inputmode="decimal" />
+            <small>Rendement simulé en cas de gain.</small>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="groupe">
+        <legend>Mode d'exécution</legend>
+        <div class="segmented" id="rg-modes" role="radiogroup" aria-label="Mode d'exécution">
+          <button type="button" class="seg" data-mode="DEMO" role="radio" aria-checked="false">Démo</button>
+          <button type="button" class="seg" data-mode="OBSERVATION" role="radio" aria-checked="false">Observation</button>
+          <button type="button" class="seg verrouille" data-mode="REEL" role="radio" aria-checked="false">Réel — verrouillé</button>
+        </div>
+        <p class="hint" id="rg-note">—</p>
+      </fieldset>
+
+      <fieldset class="groupe">
+        <legend>Flux de prix</legend>
+        <div class="segmented" id="rg-flux" role="radiogroup" aria-label="Flux de prix">
+          <button type="button" class="seg" data-flux="simule" role="radio" aria-checked="false">Simulé</button>
+          <button type="button" class="seg" data-flux="binance" role="radio" aria-checked="false">Binance · BTC/USDT</button>
+        </div>
+        <p class="hint" id="rg-flux-note">—</p>
+      </fieldset>
+    </div>
+
+    <p class="form-message erreur" id="rg-erreur" hidden></p>
+    <p class="form-message ok" id="rg-ok" hidden></p>
+
+    <footer class="modal-foot">
+      <button type="button" class="btn ghost small" id="rg-reset" title="Recharger les valeurs du fichier .env">Valeurs .env</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-fermer>Annuler</button>
+      <button type="button" class="btn" id="rg-enregistrer">Appliquer</button>
+    </footer>
+  </div>
+</dialog>
+
+<!-- ------------------------------------------------------------------ -->
+<!-- Connexion : jeton de session (SSID) en mémoire                      -->
+<!-- ------------------------------------------------------------------ -->
+<dialog id="modal-session" class="modal" aria-labelledby="se-titre">
+  <div class="modal-card">
+    <header class="modal-head">
+      <div>
+        <h2 id="se-titre">Connexion à la plateforme</h2>
+        <p class="muted">Jeton de session (SSID) — jamais d'email ni de mot de passe.</p>
+      </div>
+      <button class="icon-btn" type="button" data-fermer aria-label="Fermer">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <div class="encart">
+        <strong>Un jeton, pas un mot de passe.</strong>
+        Le SSID est un jeton temporaire extrait d'une session déjà ouverte dans
+        votre navigateur. Il reste <b>en mémoire vive</b> : jamais écrit sur
+        disque, jamais journalisé, effacé dès l'arrêt de la console.
+      </div>
+
+      <button class="btn big block" id="se-navigateur" type="button">
+        Se connecter avec votre navigateur
+      </button>
+      <p class="hint">
+        Une fenêtre Edge s'ouvre sur la page de connexion : vous tapez vous-même
+        vos identifiants (la console ne les voit ni ne les enregistre). À la fin,
+        la console lit la session et se connecte — aucun mot de passe dans l'outil.
+      </p>
+
+      <div class="reseau-bloc">
+        <div class="reseau-entete">
+          <button type="button" class="btn ghost small" id="se-reseau">Tester le réseau</button>
+          <span class="hint" id="se-reseau-resume">Vérifie si le site et les serveurs de cotation répondent (aucune donnée envoyée).</span>
+        </div>
+        <ul class="reseau-liste" id="se-reseau-liste" hidden></ul>
+      </div>
+
+      <p class="etat-ligne nav" id="se-nav-statut" hidden><i class="dot"></i><span></span></p>
+
+      <details class="aide" id="se-aide-manuel">
+        <summary>Entrer le jeton manuellement</summary>
+
+        <label class="champ large" style="margin-top:10px">
+          <span>SSID de session</span>
+          <div class="champ-ligne">
+            <input id="se-ssid" type="password" autocomplete="off" spellcheck="false" placeholder="collez le jeton ici" />
+            <button type="button" class="btn ghost small" id="se-voir">Afficher</button>
+          </div>
+        </label>
+        <div class="ligne-boutons">
+          <button type="button" class="btn small" id="se-enregistrer">Garder en mémoire</button>
+        </div>
+      </details>
+
+      <p class="etat-ligne"><i class="dot" id="se-dot"></i><span id="se-etat">Aucune session enregistrée.</span></p>
+
+      <details class="aide">
+        <summary>Où trouver le SSID ?</summary>
+        <ol>
+          <li>Connectez-vous normalement à la plateforme dans Chrome ou Edge.</li>
+          <li>Ouvrez les outils de développement (<kbd>F12</kbd>) puis l'onglet <b>Réseau</b>.</li>
+          <li>Filtrez sur <b>WS</b> et cliquez la connexion <code>socket.io</code>.</li>
+          <li>Dans <b>Messages</b>, repérez la trame d'authentification et copiez le jeton de session.</li>
+        </ol>
+        <p class="hint">
+          Ce jeton expire vite et se révoque dès que vous vous déconnectez.
+          Ne le partagez avec personne : il donne accès à votre compte.
+        </p>
+      </details>
+
+      <div class="encart danger">
+        <strong>Ce n'est pas un robot exécuté à votre place.</strong>
+        Avec un compte démo, les ordres passent en argent virtuel via votre
+        session ; avec un compte réel, la console envoie de vrais ordres selon
+        la stratégie (mode réel verrouillé tant que vous ne l'activez pas).
+        Les CGU de la plateforme peuvent interdire ce type d'accès.
+      </div>
+    </div>
+
+    <p class="form-message erreur" id="se-erreur" hidden></p>
+
+    <footer class="modal-foot">
+      <button type="button" class="btn ghost small" id="se-effacer">Effacer</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" id="se-tester">Tester la connexion</button>
+    </footer>
+  </div>
+</dialog>
+
+<script src="/static/app.js" defer></script>
+</body>
+</html>
