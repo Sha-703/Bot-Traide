@@ -605,9 +605,9 @@
       b.setAttribute("aria-checked", actif ? "true" : "false");
     });
     const notes = {
-      DEMO: "Flux synthétique ou MT5 (démo) : aucun ordre réel.",
+      DEMO: "Flux synthétique ou MT5 (.env) : aucun ordre réel.",
       OBSERVATION:
-        "Données de la plateforme en lecture seule — réservé aux cas où un bridge fiable existerait.",
+        "Indisponible : cette option reliait Pocket Option. Pas de bridge MT5 pour l'instant — l'option passera par le panneau MT5.",
       REEL: "Verrouillé : aucun adaptateur d'exécution réelle n'est livré avec ce projet.",
     };
     $("rg-note").textContent = notes[modeChoisi] || "";
@@ -621,8 +621,25 @@
     });
     $("rg-flux-note").textContent =
       fluxChoisi === "binance"
-        ? "Prix réels du marché (flux public Binance, BTC/USDT). Lecture seule : aucun compte, aucun solde, les ordres restent papier."
+        ? "Prix réels publics Binance (BTC/USDT). Lecture seule : aucun compte requis, capital papier."
         : "Générateur interne : aucun réseau, aucun compte. Les résultats ne décrivent pas le marché.";
+  }
+
+  async function rendreFluxActif() {
+    const el = $("rg-flux-actif");
+    try {
+      const r = await fetch("/api/mt5", { cache: "no-store" });
+      const d = r.ok ? await r.json() : null;
+      if (d && d.ouvert) {
+        el.innerHTML = `Flux actif : <b>MT5 · ${d.symbole}</b> — ticks réels du compte démo (lecture seule, aucun ordre).`;
+        el.classList.add("actif");
+      } else {
+        el.innerHTML = `Flux actif : <b>simulation</b> — activez <code>MT5_DEMO=true</code> dans <code>.env</code> + redémarrez pour utiliser MT5.`;
+        el.classList.remove("actif");
+      }
+    } catch {
+      el.textContent = "Flux actif : inconnu (serveur injoignable).";
+    }
   }
 
   function remplirReglages(r) {
@@ -638,6 +655,7 @@
     $("rg-payout").value = r.payout_pct;
     majSegments();
     majFlux();
+    rendreFluxActif();
     afficherMessage("rg-erreur", "");
     afficherMessage("rg-ok", "");
   }

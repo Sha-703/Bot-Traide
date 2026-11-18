@@ -262,7 +262,7 @@
   <div class="modal-card">
     <header class="modal-head">
       <div>
-        <h2 id="rg-titre">Réglages de la session</h2>
+        <h2 id="rg-titre">Réglages du bot</h2>
         <p class="muted">Appliqués immédiatement, sans redémarrer la console.</p>
       </div>
       <button class="icon-btn" type="button" data-fermer aria-label="Fermer">✕</button>
@@ -306,12 +306,12 @@
           <label class="champ">
             <span>Expiration <em>s</em></span>
             <input id="rg-expiration" type="number" min="5" max="3600" step="1" inputmode="numeric" />
-            <small>Durée de vie d'un ordre binaire.</small>
+            <small>Durée de vie d'un ordre — flux synthétique uniquement.</small>
           </label>
           <label class="champ">
-            <span>Payout <em>%</em></span>
+            <span>Payout simulé <em>%</em></span>
             <input id="rg-payout" type="number" min="5" max="99" step="0.5" inputmode="decimal" />
-            <small>Rendement simulé en cas de gain.</small>
+            <small>Rendement fictif — n'existe pas en CFD Weltrade.</small>
           </label>
         </div>
       </fieldset>
@@ -320,19 +320,20 @@
         <legend>Mode d'exécution</legend>
         <div class="segmented" id="rg-modes" role="radiogroup" aria-label="Mode d'exécution">
           <button type="button" class="seg" data-mode="DEMO" role="radio" aria-checked="false">Démo</button>
-          <button type="button" class="seg" data-mode="OBSERVATION" role="radio" aria-checked="false">Observation</button>
-          <button type="button" class="seg verrouille" data-mode="REEL" role="radio" aria-checked="false">Réel — verrouillé</button>
+          <button type="button" class="seg indisponible" data-mode="OBSERVATION" role="radio" aria-checked="false" disabled>Observation</button>
+          <button type="button" class="seg verrouille" data-mode="REEL" role="radio" aria-checked="false" disabled>Réel — verrouillé</button>
         </div>
         <p class="hint" id="rg-note">—</p>
       </fieldset>
 
       <fieldset class="groupe">
-        <legend>Flux de prix</legend>
+        <legend>Flux de prix (laboratoire)</legend>
         <div class="segmented" id="rg-flux" role="radiogroup" aria-label="Flux de prix">
           <button type="button" class="seg" data-flux="simule" role="radio" aria-checked="false">Simulé</button>
           <button type="button" class="seg" data-flux="binance" role="radio" aria-checked="false">Binance · BTC/USDT</button>
         </div>
         <p class="hint" id="rg-flux-note">—</p>
+        <p class="hint hint-actif" id="rg-flux-actif">Flux actif : —</p>
       </fieldset>
     </div>
 
