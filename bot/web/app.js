@@ -230,9 +230,11 @@
     const sousTitre =
       solde.origine === "plateforme"
         ? "solde du compte · lecture seule"
-        : solde.origine === "indisponible"
-          ? "solde du compte indisponible"
-          : `papier · initial ${fmtMoney(s.capital_initial)}`;
+        : solde.origine === "mt5_demo"
+          ? "compte démo MT5 · lecture seule"
+          : solde.origine === "indisponible"
+            ? "solde du compte indisponible"
+            : `papier · initial ${fmtMoney(s.capital_initial)}`;
     $("kpi-capital-sub").textContent = sousTitre;
     $("kpi-capital-sub").title =
       (solde.note || "") +
@@ -808,6 +810,47 @@
       chargerReglages();
     } catch (e) {
       afficherMessage("se-erreur", "Serveur injoignable.");
+    }
+  });
+
+  $("se-sonde-btn").addEventListener("click", async () => {
+    afficherMessage("se-erreur", "");
+    const bloc = $("se-sonde");
+    const liste = $("se-sonde-liste");
+    bloc.hidden = false;
+    bloc.querySelectorAll(".sonde-detail").forEach((d) => d.remove());
+    liste.innerHTML = '<li class="sonde-item"><span>diagnostic en cours…</span></li>';
+    try {
+      const r = await fetch("/api/session/sonder", { method: "POST" });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        liste.innerHTML = "";
+        afficherMessage("se-erreur", data.detail || "Diagnostic impossible.");
+        return;
+      }
+      liste.innerHTML = "";
+      for (const reg of data.regions || []) {
+        const ok = reg.ouverture === "ok";
+        const trames = (reg.trames || [])
+          .map((t) => `${t.sid_io}${t.evenement ? " " + t.evenement : ""} · ${t.octets} o`)
+          .join(" · ") || "aucune trame reçue";
+        const li = document.createElement("li");
+        li.className = "sonde-item";
+        li.innerHTML = `<b>${reg.region}</b><span class="${ok ? "ok" : "ko"}">` +
+          (ok
+            ? `SSID ${reg.envoi_ssid} · ${trames}`
+            : `échec : ${reg.ouverture}`) +
+          "</span>";
+        liste.appendChild(li);
+      }
+      const detail = document.createElement("p");
+      detail.className = "sonde-detail";
+      detail.textContent =
+        "Seules les tailles et les types de trames sont rapportés — " +
+        "aucun contenu, aucun jeton n'est affiché ici.";
+      bloc.appendChild(detail);
+    } catch (e) {
+      liste.innerHTML = '<li class="sonde-item"><span class="ko">Serveur injoignable.</span></li>';
     }
   });
 

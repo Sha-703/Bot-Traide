@@ -39,6 +39,7 @@ from .navigateur import (
 )
 from .reglages import ReglageInvalide, Reglages
 from .session import GestionnaireSession, SessionInvalide
+from .sonde import sonder
 from .verrou import VerrouInstance
 
 WEB = Path(__file__).resolve().parent / "web"
@@ -65,6 +66,9 @@ def creer_application(settings: Settings, moteur: Moteur | None = None) -> FastA
             )
         else:
             moteur.demarrer_en_tache()
+        # Le solde affiché doit refléter le compte dès le premier affichage,
+        # pas seulement après un basculement de mode.
+        await moteur.rafraichir_solde()
         try:
             yield
         finally:
@@ -287,6 +291,22 @@ def creer_application(settings: Settings, moteur: Moteur | None = None) -> FastA
         if moteur.mode == "OBSERVATION":
             await moteur.rafraichir_solde(app.state.session)
         return JSONResponse(etat)
+
+    @app.post("/api/session/sonder")
+    async def sonder_session() -> JSONResponse:
+        """Diagnostic détaillé : pourquoi le serveur répond ou pas.
+
+        N'expose aucun secret : uniquement la région contactée, le type de
+        trames réseau et le nom déclaré des événements reçus. Aucun payload
+        n'est renvoyé, jamais enregistré.
+        """
+        if not app.state.session.configuree:
+            raise HTTPException(
+                status_code=400,
+                detail="Aucun SSID en mémoire : connectez-vous d'abord.",
+            )
+        regions = await sonder(app.state.session.ssid)
+        return JSONResponse({"regions": regions})
 
     @app.get("/api/reseau")
     async def etat_reseau() -> JSONResponse:

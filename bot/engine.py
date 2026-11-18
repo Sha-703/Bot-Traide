@@ -25,11 +25,11 @@ from .connexion import (
     FluxSynthetique,
     SourceDePrix,
     Tick,
-    construire_source,
 )
 from .execution import ExecutionRefusee, MoteurExecution, Ordre
 from .journalisation import Journal
 from .reglages import Reglages
+from .mt5_adapter import SourceMT5, SoldeMT5Demo
 from .risque import GestionRisque, Limites, RisqueRefuse
 from .solde import construire_source_solde
 from .strategie import StrategieMoyennesMobiles
@@ -80,16 +80,16 @@ class Moteur:
         self.execution = MoteurExecution(
             settings, self.risque, self.journal, self.reglages
         )
-        self.source: SourceDePrix = construire_source(settings, self.journal)
-        self.execution.actif = getattr(self.source, "actif", settings.actif)
-
-        # --- Mode et solde affiché -------------------------------------
+        # Mode posé AVANT la création du flux : _construire_source en dépend.
         self.mode: str = self.reglages.mode
+        self.execution.mode_reel = self.mode == "REEL"
+        self.execution.mode_label = self.mode
+
+        self.source: SourceDePrix = self._construire_source(None)
+        self.execution.actif = getattr(self.source, "actif", settings.actif)
         self.solde_plateforme: float | None = None
         self.origine_solde: str = "simulé"
         self.note_solde: str = "Capital papier du simulateur."
-        self.execution.mode_reel = self.mode == "REEL"
-        self.execution.mode_label = self.mode
 
         # --- État observable ------------------------------------------
         self.capital = settings.capital_initial
@@ -352,6 +352,15 @@ class Moteur:
                 url=session.url,
                 journal=self.journal,
             )
+        if self.settings.mt5_demo:
+            # Ticks réels du terminal Weltrade MT5 (compte DÉMO).
+            return SourceMT5(
+                symbole=self.settings.mt5_symbole,
+                intervalle_s=self.settings.intervalle_tick_s
+                / max(self.settings.facteur_vitesse, 0.01),
+                chemin=self.settings.mt5_chemin_terminal,
+                journal=self.journal,
+            )
         if self.reglages.flux_prix == "binance":
             return FluxBinance(
                 symbole=self.settings.actif_binance,
@@ -379,6 +388,17 @@ class Moteur:
 
     async def rafraichir_solde(self, session: Any | None = None) -> None:
         """Met à jour le solde affiché (simulé ou compte, en lecture seule)."""
+        if self.settings.mt5_demo:
+            valeur, note = await SoldeMT5Demo(
+                self.settings.mt5_chemin_terminal
+            ).lire()
+            self.solde_plateforme = valeur
+            self.origine_solde = (
+                "mt5_demo" if valeur is not None else "indisponible"
+            )
+            self.note_solde = note
+            self._diffuser()
+            return
         source = construire_source_solde(self.mode, self.capital, session)
         valeur, note = await source.lire()
         if self.mode == "OBSERVATION":

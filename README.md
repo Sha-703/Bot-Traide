@@ -94,13 +94,36 @@ Les valeurs hors bornes sont refusées côté serveur (HTTP 400), la mise ne peu
 jamais dépasser le plafond, et le mode réel est refusé avec une explication.
 Le bouton *Valeurs .env* recharge la configuration du fichier.
 
-**Flux de prix réel.** Le flux *Binance* consomme le WebSocket public de Binance
-(`btcusdt@aggTrade`) : **aucun compte, aucune clé, aucun ordre**. Il permet de
-mesurer la stratégie sur de vrais prix, avec des trades papier. Le flux est
-limité à un tick par seconde pour ne pas noyer les EMA ; si l'hôte principal est
-filtré par votre réseau, le miroir public `data-stream.binance.vision` prend le
-relais automatiquement. Changer de flux réinitialise les EMA : on ne mélange
-jamais deux sources dans une même série.
+## Flux MT5 (Weltrade, compte démo, lecture seule)
+
+**La bibliothèque officielle MetaQuotes** permet enfin à ce projet de
+**lire un solde réel** — jamais inventé :
+
+```powershell
+# 1. Installer le terminal Weltrade MT5 et ouvrir un compte DÉMO
+#    (fait une fois sur https://www.weltrade.com/fr/trading/platform/mt5).
+# 2. Activer dans `.env` :
+MT5_DEMO=true
+MT5_SYMBOLE=EURUSD_i
+# Chemin par défaut : C:\Program Files\Weltrade MT5 Terminal\terminal64.exe
+MT5_CHEMIN_TERMINAL=
+```
+
+La console affiche alors : les **ticks réels** du terminal (source `mt5_demo`) et le
+**solde réel du compte démo** (« compte démo MT5 · lecture seule »), avec la même
+sémantique de non-invention que partout ailleurs. Aucune position, aucun ordre
+n'est transmis — l'exécution réelle sera une brique séparée, jamais surprise.
+Note : cotations FX chez Weltrade sont libellées `EURUSD_i`… ; c'est un CFD à
+levier (jusqu'à 1:2000 en démo) — même cadre « démo uniquement ».
+
+## Flux Binance (public, papier)
+
+Le flux *Binance* consomme le WebSocket public de Binance (`btcusdt@aggTrade`) :
+**aucun compte, aucune clé, aucun ordre**. Il permet de mesurer la stratégie sur
+de vrais prix, avec des trades papier. Le flux est limité à un tick/seconde ; si
+l'hôte principal est filtré par votre réseau, le miroir public
+`data-stream.binance.vision` prend le relais automatiquement. Changer de flux
+réinitialise les EMA : on ne mélange jamais deux sources dans une même série.
 
 Pour une mesure longue **sans consommer le quota journalier** (les garde-fous
 du moteur suspendent le bot à `trades_max_par_jour`), utilisez le harnais dédié :

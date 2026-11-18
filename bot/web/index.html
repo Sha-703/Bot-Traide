@@ -426,6 +426,11 @@
         la stratégie (mode réel verrouillé tant que vous ne l'activez pas).
         Les CGU de la plateforme peuvent interdire ce type d'accès.
       </div>
+
+      <div class="sonde" id="se-sonde" hidden>
+        <p class="sonde-titre">Diagnostic réseau (lecture seule, aucun contenu envoyé)</p>
+        <ul id="se-sonde-liste"></ul>
+      </div>
     </div>
 
     <p class="form-message erreur" id="se-erreur" hidden></p>
@@ -433,6 +438,7 @@
     <footer class="modal-foot">
       <button type="button" class="btn ghost small" id="se-effacer">Effacer</button>
       <span class="spacer"></span>
+      <button type="button" class="btn ghost small" id="se-sonde-btn">Diagnostiquer</button>
       <button type="button" class="btn ghost" id="se-tester">Tester la connexion</button>
     </footer>
   </div>

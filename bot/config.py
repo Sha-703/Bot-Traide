@@ -88,6 +88,16 @@ class Settings:
     flux_prix: str = "simule"
     actif_binance: str = "BTCUSDT"
 
+    # --- MT5 (Weltrade, compte DÉMO, lecture seule) -----------------------
+    # MT5_DEMO=true active : ticks du terminal, solde du compte démo.
+    # MT5_EXE est réservé à une étape ultérieure (ordres RÉELS sur démo).
+    mt5_demo: bool = False
+    mt5_symbole: str = "EURUSD_i"
+    mt5_chemin_terminal: str | None = None
+    mt5_volume: float = 0.01
+    mt5_sl_points: int = 50
+    mt5_tp_points: int = 100
+
     # --- Marché -------------------------------------------------------------
     actif: str = "EURUSD"
     duree_expiration_s: int = 60
@@ -138,6 +148,8 @@ class Settings:
             "actif": self.actif,
             "flux_prix": self.flux_prix,
             "actif_binance": self.actif_binance,
+            "mt5_demo": self.mt5_demo,
+            "mt5_symbole": self.mt5_symbole,
             "duree_expiration_s": self.duree_expiration_s,
             "payout": self.payout,
             "capital_initial": self.capital_initial,
@@ -178,6 +190,16 @@ def charger_config(chemin_env: Path | None = None) -> Settings:
         )
     actif_binance = (os.getenv("ACTIF_BINANCE") or "BTCUSDT").strip().upper()
 
+    # 1 ter) MT5 (Weltrade, compte DÉMO) : explicite, lecture seule.
+    mt5_demo = (os.getenv("MT5_DEMO") or "").strip().lower() in {
+        "true", "1", "oui", "yes", "on",
+    }
+    mt5_symbole = (os.getenv("MT5_SYMBOLE") or "EURUSD_i").strip()
+    mt5_chemin_terminal = (os.getenv("MT5_CHEMIN_TERMINAL") or "").strip() or None
+    mt5_volume = _lire_float("MT5_VOLUME", 0.01)
+    mt5_sl_points = _lire_int("MT5_SL_POINTS", 50)
+    mt5_tp_points = _lire_int("MT5_TP_POINTS", 100)
+
     # 2) En mode réel, un SSID est indispensable et une double confirmation
     #    est exigée : un simple `MODE_REEL=True` ne suffit pas.
     if mode_reel:
@@ -212,6 +234,12 @@ def charger_config(chemin_env: Path | None = None) -> Settings:
         ssid=ssid,
         flux_prix=flux_prix,
         actif_binance=actif_binance,
+        mt5_demo=mt5_demo,
+        mt5_symbole=mt5_symbole,
+        mt5_chemin_terminal=mt5_chemin_terminal,
+        mt5_volume=mt5_volume,
+        mt5_sl_points=mt5_sl_points,
+        mt5_tp_points=mt5_tp_points,
         actif=(os.getenv("ACTIF") or "EURUSD").strip().upper(),
         duree_expiration_s=_lire_int("DUREE_EXPIRATION_S", 60),
         payout=_lire_float("PAYOUT", 0.87),
