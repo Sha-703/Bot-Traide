@@ -40,6 +40,7 @@ from .navigateur import (
 from .reglages import ReglageInvalide, Reglages
 from .session import GestionnaireSession, SessionInvalide
 from .sonde import sonder
+from .mt5_adapter import diagnostiquer_mt5
 from .verrou import VerrouInstance
 
 WEB = Path(__file__).resolve().parent / "web"
@@ -307,6 +308,17 @@ def creer_application(settings: Settings, moteur: Moteur | None = None) -> FastA
             )
         regions = await sonder(app.state.session.ssid)
         return JSONResponse({"regions": regions})
+
+    @app.get("/api/mt5")
+    async def etat_mt5() -> JSONResponse:
+        """État du terminal MT5 et du compte démo. Aucun secret."""
+        rapport = await asyncio.to_thread(
+            diagnostiquer_mt5,
+            settings.mt5_chemin_terminal,
+            settings.mt5_symbole,
+            settings.mt5_demo,
+        )
+        return JSONResponse(rapport)
 
     @app.get("/api/reseau")
     async def etat_reseau() -> JSONResponse:

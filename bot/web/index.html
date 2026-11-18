@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pocket Lab — Console de trading supervisé</title>
+<title>Pocket Lab — Weltrade MT5 · Bot de trading supervisé</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1017'/%3E%3Cpath d='M8 22 L13 15 L18 19 L24 9' stroke='%2334e5a3' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="/static/styles.css" />
 </head>
@@ -23,8 +23,8 @@
       </svg>
     </span>
     <div class="brand-text">
-      <h1>Pocket&nbsp;Lab</h1>
-      <p>Console de trading supervisé — environnement isolé</p>
+      <h1>Pocket&nbsp;Lab · Weltrade</h1>
+      <p>Bot de trading supervisé sur MetaTrader 5 — compte démo uniquement</p>
     </div>
   </div>
 
@@ -38,7 +38,7 @@
 
   <div class="actions">
     <button class="btn" id="btn-pause" type="button">Mettre en pause</button>
-    <button class="btn ghost" id="btn-connexion" type="button">Connexion</button>
+    <button class="btn ghost" id="btn-connexion" type="button">MT5</button>
     <button class="btn ghost" id="btn-reglages" type="button">Réglages</button>
     <a class="btn ghost" href="/api/trades.csv" download>CSV</a>
   </div>
@@ -248,11 +248,11 @@
 </main>
 
 <footer class="disclaimer">
-  <strong>Avertissement.</strong> Ce projet est un outil pédagogique de simulation.
-  Aucune rentabilité n'est promise ni suggérée : les produits binaires à effet de levier
-  peuvent entraîner la perte totale du capital. Le trading via des API non officielles
-  peut violer les conditions d'utilisation de la plateforme. Vous restez seul responsable
-  de vos décisions et de l'usage de ce code.
+  <strong>Avertissement.</strong> Ce projet utilise <em>uniquement</em> un compte DÉMO
+  Weltrade sur MetaTrader 5. Aucune rentabilité n'est promise ni suggérée : un CFD à
+  levier peut entraîner la perte totale du capital en quelques minutes. Vous restez
+  seul responsable de vos décisions et de l'usage de ce code. Rien de ce panneau ne
+  doit être utilisé sur un compte réel sans validation personnelle complète.
 </footer>
 
 <!-- ------------------------------------------------------------------ -->
@@ -349,97 +349,55 @@
 </dialog>
 
 <!-- ------------------------------------------------------------------ -->
-<!-- Connexion : jeton de session (SSID) en mémoire                      -->
+<!-- Compte Weltrade MT5 : état du terminal et du compte démo            -->
 <!-- ------------------------------------------------------------------ -->
 <dialog id="modal-session" class="modal" aria-labelledby="se-titre">
   <div class="modal-card">
     <header class="modal-head">
       <div>
-        <h2 id="se-titre">Connexion à la plateforme</h2>
-        <p class="muted">Jeton de session (SSID) — jamais d'email ni de mot de passe.</p>
+        <h2 id="se-titre">Compte Weltrade MT5</h2>
+        <p class="muted">État du terminal et du compte démo — solde, équité, levier.</p>
       </div>
       <button class="icon-btn" type="button" data-fermer aria-label="Fermer">✕</button>
     </header>
 
     <div class="modal-body">
       <div class="encart">
-        <strong>Un jeton, pas un mot de passe.</strong>
-        Le SSID est un jeton temporaire extrait d'une session déjà ouverte dans
-        votre navigateur. Il reste <b>en mémoire vive</b> : jamais écrit sur
-        disque, jamais journalisé, effacé dès l'arrêt de la console.
+        <strong>Un terminal, pas des identifiants.</strong>
+        La console se connecte au <b>terminal Weltrade MT5</b> démarré sur ce poste
+        (le même que vous ouvrez chaque matin). Elle <b>ne demande jamais votre mot
+        de passe</b> : seul le terminal porte la session.
       </div>
 
-      <button class="btn big block" id="se-navigateur" type="button">
-        Se connecter avec votre navigateur
-      </button>
-      <p class="hint">
-        Une fenêtre Edge s'ouvre sur la page de connexion : vous tapez vous-même
-        vos identifiants (la console ne les voit ni ne les enregistre). À la fin,
-        la console lit la session et se connecte — aucun mot de passe dans l'outil.
-      </p>
-
-      <div class="reseau-bloc">
-        <div class="reseau-entete">
-          <button type="button" class="btn ghost small" id="se-reseau">Tester le réseau</button>
-          <span class="hint" id="se-reseau-resume">Vérifie si le site et les serveurs de cotation répondent (aucune donnée envoyée).</span>
-        </div>
-        <ul class="reseau-liste" id="se-reseau-liste" hidden></ul>
+      <div class="mt5-grid" id="mt5-grille">
+        <div class="mt5-item"><span>Terminal</span><b id="mt5-terminal">—</b></div>
+        <div class="mt5-item"><span>Serveur</span><b id="mt5-serveur">—</b></div>
+        <div class="mt5-item"><span>Numéro de compte</span><b id="mt5-login">—</b></div>
+        <div class="mt5-item"><span>Nom</span><b id="mt5-nom">—</b></div>
+        <div class="mt5-item"><span>Devise</span><b id="mt5-devise">—</b></div>
+        <div class="mt5-item"><span>Levier</span><b id="mt5-levier">—</b></div>
+        <div class="mt5-item"><span>Solde</span><b id="mt5-solde">—</b></div>
+        <div class="mt5-item"><span>Équité</span><b id="mt5-equity">—</b></div>
       </div>
 
-      <p class="etat-ligne nav" id="se-nav-statut" hidden><i class="dot"></i><span></span></p>
+      <p class="hint" id="mt5-note">Connexion au terminal en cours…</p>
 
-      <details class="aide" id="se-aide-manuel">
-        <summary>Entrer le jeton manuellement</summary>
-
-        <label class="champ large" style="margin-top:10px">
-          <span>SSID de session</span>
-          <div class="champ-ligne">
-            <input id="se-ssid" type="password" autocomplete="off" spellcheck="false" placeholder="collez le jeton ici" />
-            <button type="button" class="btn ghost small" id="se-voir">Afficher</button>
-          </div>
-        </label>
-        <div class="ligne-boutons">
-          <button type="button" class="btn small" id="se-enregistrer">Garder en mémoire</button>
-        </div>
-      </details>
-
-      <p class="etat-ligne"><i class="dot" id="se-dot"></i><span id="se-etat">Aucune session enregistrée.</span></p>
-
-      <details class="aide">
-        <summary>Où trouver le SSID ?</summary>
-        <ol>
-          <li>Connectez-vous normalement à la plateforme dans Chrome ou Edge.</li>
-          <li>Ouvrez les outils de développement (<kbd>F12</kbd>) puis l'onglet <b>Réseau</b>.</li>
-          <li>Filtrez sur <b>WS</b> et cliquez la connexion <code>socket.io</code>.</li>
-          <li>Dans <b>Messages</b>, repérez la trame d'authentification et copiez le jeton de session.</li>
-        </ol>
-        <p class="hint">
-          Ce jeton expire vite et se révoque dès que vous vous déconnectez.
-          Ne le partagez avec personne : il donne accès à votre compte.
-        </p>
-      </details>
+      <button class="btn big block" id="mt5-rafraichir" type="button">Actualiser</button>
 
       <div class="encart danger">
-        <strong>Ce n'est pas un robot exécuté à votre place.</strong>
-        Avec un compte démo, les ordres passent en argent virtuel via votre
-        session ; avec un compte réel, la console envoie de vrais ordres selon
-        la stratégie (mode réel verrouillé tant que vous ne l'activez pas).
-        Les CGU de la plateforme peuvent interdire ce type d'accès.
-      </div>
-
-      <div class="sonde" id="se-sonde" hidden>
-        <p class="sonde-titre">Diagnostic réseau (lecture seule, aucun contenu envoyé)</p>
-        <ul id="se-sonde-liste"></ul>
+        <strong>Compte démo uniquement.</strong>
+        Ce bot parle à un compte <b>DÉMO</b> Weltrade : aucun ordre réel n'est
+        possible ici tant que vous n'aurez pas explicitement basculé sur un compte
+        réel — avec votre propre validation et vos propres limites. Un CFD à levier
+        1:2000 vide un compte en quelques minutes.
       </div>
     </div>
 
     <p class="form-message erreur" id="se-erreur" hidden></p>
 
     <footer class="modal-foot">
-      <button type="button" class="btn ghost small" id="se-effacer">Effacer</button>
       <span class="spacer"></span>
-      <button type="button" class="btn ghost small" id="se-sonde-btn">Diagnostiquer</button>
-      <button type="button" class="btn ghost" id="se-tester">Tester la connexion</button>
+      <button type="button" class="btn ghost" data-fermer>Fermer</button>
     </footer>
   </div>
 </dialog>

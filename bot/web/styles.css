@@ -145,9 +145,8 @@ code {
 #pill-mode[data-mode="REEL"] { color: var(--danger); border-color: rgba(255, 95, 109, .4); background: rgba(255, 95, 109, .09); }
 #pill-mode[data-mode="REEL"] .dot { background: var(--danger); animation: pulse 1.4s infinite; }
 
-#pill-session[data-etat="MEMOIRE"] .dot { background: var(--warn); }
-#pill-session[data-etat="JOIGNABLE"] .dot { background: var(--accent-2); }
-#pill-session[data-etat="VALIDEE"] .dot { background: var(--accent); animation: pulse 2s infinite; }
+#pill-session[data-etat="VIDE"] .dot { background: var(--muted); }
+#pill-session[data-etat="EN_MEMOIRE"] .dot { background: var(--accent); animation: pulse 2s infinite; }
 #pill-session[data-etat="ECHEC"] .dot { background: var(--danger); }
 
 #pill-connexion[data-etat="CONNECTE"] .dot { background: var(--accent); animation: pulse 2s infinite; }
@@ -988,6 +987,31 @@ td.pnl.neg { color: var(--danger); }
 .reseau-liste li { display: flex; gap: 8px; }
 .reseau-liste li.ok { color: var(--accent); }
 .reseau-liste li.ko { color: var(--danger); }
+
+.mt5-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 14px;
+  margin: 14px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line-soft);
+}
+.mt5-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.mt5-item span {
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mt5-item b { font-size: 12.5px; color: var(--text); font-weight: 600; }
 
 .sonde {
   margin: 12px 0;

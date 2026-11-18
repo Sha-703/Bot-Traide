@@ -88,6 +88,45 @@ def informations_compte(chemin: str | None = None) -> dict[str, Any]:
     }
 
 
+def diagnostiquer_mt5(chemin: str | None, symbole: str, actif: bool) -> dict[str, Any]:
+    """Rapport complet de l'état MT5 pour la console.
+
+    N'expose aucun secret, seulement les informations du compte démo.
+    """
+    if not actif:
+        return {
+            "configure": False,
+            "ouvert": False,
+            "source": "indisponible",
+            "symbole": symbole,
+            "erreur": "MT5_DEMO=false dans .env — la console ne parle pas au terminal.",
+            "note": "Activez MT5_DEMO=true, redémarrez, et gardez le terminal ouvert.",
+        }
+    try:
+        info = informations_compte(chemin)
+        return {
+            "configure": True,
+            "ouvert": True,
+            "source": "mt5_demo",
+            "symbole": symbole,
+            **info,
+            "erreur": None,
+            "note": (
+                f"Flux mt5_demo · {symbole} · compte DÉMO #{info['login']} "
+                f"({info['serveur']})"
+            ),
+        }
+    except MT5Indisponible as exc:
+        return {
+            "configure": True,
+            "ouvert": False,
+            "source": "indisponible",
+            "symbole": symbole,
+            "erreur": str(exc),
+            "note": "Ouvrez le terminal Weltrade MT5 et connectez-vous au compte DÉMO.",
+        }
+
+
 def _tick(mt5, symbole: str):
     """Retourne le tick muet… ou lève MT5Indisponible si muet durablement."""
     info = mt5.symbol_info_tick(symbole)

@@ -34,3 +34,7 @@ frames_capture*.jsonl
 _run.log
 _run.err
 
+
+_mt5.log
+_mt5.err
+

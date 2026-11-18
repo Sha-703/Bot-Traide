@@ -605,9 +605,9 @@
       b.setAttribute("aria-checked", actif ? "true" : "false");
     });
     const notes = {
-      DEMO: "Flux synthétique et capital papier : aucune connexion, aucun risque financier.",
+      DEMO: "Flux synthétique ou MT5 (démo) : aucun ordre réel.",
       OBSERVATION:
-        "Données de la plateforme en lecture seule, ordres papier. Une session (SSID) est requise.",
+        "Données de la plateforme en lecture seule — réservé aux cas où un bridge fiable existerait.",
       REEL: "Verrouillé : aucun adaptateur d'exécution réelle n'est livré avec ce projet.",
     };
     $("rg-note").textContent = notes[modeChoisi] || "";
@@ -705,7 +705,7 @@
       if (data.reglages) remplirReglages(data.reglages);
       afficherMessage("rg-erreur", "");
       afficherMessage("rg-ok", data.message || "Réglages appliqués.");
-      chargerSession();
+      chargerMt5();
     } catch {
       afficherMessage("rg-erreur", "Serveur injoignable : réglages non appliqués.");
     }
@@ -725,218 +725,70 @@
     ouvrirDialogue("modal-reglages");
   });
 
-  /* --- Session (SSID) ------------------------------------------------ */
-  function rendreSession(se) {
-    if (!se) return;
+  /* --- Compte Weltrade MT5 (panneau de connexion) --------------------- */
+  function rendreMt5(data) {
+    if (!data) return;
+    const configurer = !!data.configure;
+    const ouvert = !!data.ouvert;
     const pill = $("pill-session");
-    pill.dataset.etat = se.etat;
+    pill.dataset.etat = ouvert ? "EN_MEMOIRE" : configurer ? "ECHEC" : "VIDE";
     const libelles = {
-      VIDE: "session : aucune",
-      EN_MEMOIRE: `session : ${se.apercu}`,
-      JOIGNABLE: `session : ${se.apercu} · serveur joignable`,
-      VALIDEE: `session : ${se.apercu} · validée`,
-      ECHEC: "session : échec du test",
+      EN_MEMOIRE: `MT5 · #${data.login ?? "—"} · ${data.serveur ?? "—"}`,
+      ECHEC: "MT5 · terminal introuvable",
+      VIDE: "MT5 · non configuré (MT5_DEMO)",
     };
-    pill.querySelector("span").textContent = libelles[se.etat] || "session";
-    pill.title = se.message || "";
+    pill.querySelector("span").textContent = libelles[pill.dataset.etat] || "MT5";
+    pill.title = data.note || "";
 
-    const ligne = $("se-etat");
-    if (ligne) {
-      ligne.parentElement.dataset.etat = se.etat;
-      ligne.textContent = se.message || "Aucune session enregistrée.";
+    const pos = (id, v) => {
+      const el = $(id);
+      if (el) el.textContent = v ?? "—";
+    };
+    pos("mt5-terminal", ouvert ? "connecté ✓" : "indisponible");
+    pos("mt5-serveur", data.serveur);
+    pos("mt5-login", data.login != null ? `#${data.login}` : "—");
+    pos("mt5-nom", data.nom);
+    pos("mt5-devise", data.devise);
+    pos("mt5-levier", data.levier ? `1:${data.levier}` : "—");
+    pos("mt5-solde", data.balance != null ? `${data.balance} ${data.devise || ""}` : "—");
+    pos("mt5-equity", data.equity != null ? `${data.equity} ${data.devise || ""}` : "—");
+
+    const note = $("mt5-note");
+    if (!configurer) {
+      note.textContent = "Activez MT5_DEMO=true dans `.env`, puis redémarrez la console.";
+    } else if (!ouvert) {
+      note.textContent =
+        data.note || "Le terminal Weltrade MT5 n'est pas démarré ou aucun compte n'est connecté.";
+    } else {
+      note.textContent =
+        data.note || `Flux mt5_demo · ${data.symbole} · compte démo #${data.login}`;
     }
   }
 
-  async function chargerSession() {
+  async function chargerMt5() {
     try {
-      const r = await fetch("/api/session", { cache: "no-store" });
-      if (r.ok) rendreSession(await r.json());
+      const r = await fetch("/api/mt5", { cache: "no-store" });
+      if (r.ok) rendreMt5(await r.json());
     } catch { /* ignoré */ }
   }
 
-  async function envoyerSession(ssid) {
-    const r = await fetch("/api/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ssid }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.detail || "Jeton refusé.");
-    return data;
-  }
-
-  $("se-voir").addEventListener("click", () => {
-    const champ = $("se-ssid");
-    const visible = champ.type === "text";
-    champ.type = visible ? "password" : "text";
-    $("se-voir").textContent = visible ? "Afficher" : "Masquer";
-  });
-
-  $("se-enregistrer").addEventListener("click", async () => {
-    const ssid = $("se-ssid").value.trim();
-    if (!ssid) {
-      afficherMessage("se-erreur", "Collez d'abord le jeton de session.");
-      return;
-    }
-    try {
-      const data = await envoyerSession(ssid);
-      afficherMessage("se-erreur", "");
-      $("se-ssid").value = ""; // le jeton ne reste pas affiché à l'écran
-      rendreSession(data);
-      chargerReglages();
-    } catch (e) {
-      afficherMessage("se-erreur", e.message || "Jeton refusé.");
-    }
-  });
-
-  $("se-tester").addEventListener("click", async () => {
+  $("mt5-rafraichir").addEventListener("click", async () => {
     afficherMessage("se-erreur", "");
-    const ssid = $("se-ssid").value.trim();
-    try {
-      if (ssid) {
-        rendreSession(await envoyerSession(ssid));
-        $("se-ssid").value = "";
-      }
-      const r = await fetch("/api/session/tester", { method: "POST" });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        afficherMessage("se-erreur", data.detail || "Test impossible.");
-        return;
-      }
-      rendreSession(data);
-      if (data.etat === "ECHEC") {
-        afficherMessage("se-erreur", data.derniere_erreur || data.message || "Test en échec.");
-      }
-      chargerReglages();
-    } catch (e) {
-      afficherMessage("se-erreur", "Serveur injoignable.");
-    }
-  });
-
-  $("se-sonde-btn").addEventListener("click", async () => {
-    afficherMessage("se-erreur", "");
-    const bloc = $("se-sonde");
-    const liste = $("se-sonde-liste");
-    bloc.hidden = false;
-    bloc.querySelectorAll(".sonde-detail").forEach((d) => d.remove());
-    liste.innerHTML = '<li class="sonde-item"><span>diagnostic en cours…</span></li>';
-    try {
-      const r = await fetch("/api/session/sonder", { method: "POST" });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        liste.innerHTML = "";
-        afficherMessage("se-erreur", data.detail || "Diagnostic impossible.");
-        return;
-      }
-      liste.innerHTML = "";
-      for (const reg of data.regions || []) {
-        const ok = reg.ouverture === "ok";
-        const trames = (reg.trames || [])
-          .map((t) => `${t.sid_io}${t.evenement ? " " + t.evenement : ""} · ${t.octets} o`)
-          .join(" · ") || "aucune trame reçue";
-        const li = document.createElement("li");
-        li.className = "sonde-item";
-        li.innerHTML = `<b>${reg.region}</b><span class="${ok ? "ok" : "ko"}">` +
-          (ok
-            ? `SSID ${reg.envoi_ssid} · ${trames}`
-            : `échec : ${reg.ouverture}`) +
-          "</span>";
-        liste.appendChild(li);
-      }
-      const detail = document.createElement("p");
-      detail.className = "sonde-detail";
-      detail.textContent =
-        "Seules les tailles et les types de trames sont rapportés — " +
-        "aucun contenu, aucun jeton n'est affiché ici.";
-      bloc.appendChild(detail);
-    } catch (e) {
-      liste.innerHTML = '<li class="sonde-item"><span class="ko">Serveur injoignable.</span></li>';
-    }
-  });
-
-  $("se-effacer").addEventListener("click", async () => {
-    try {
-      const r = await fetch("/api/session", { method: "DELETE" });
-      const data = await r.json().catch(() => ({}));
-      if (r.ok) {
-        rendreSession(data);
-        afficherMessage("se-erreur", "");
-        $("se-ssid").value = "";
-        chargerReglages();
-      }
-    } catch { /* ignoré */ }
+    await chargerMt5();
   });
 
   $("btn-connexion").addEventListener("click", async () => {
-    await chargerSession();
+    await chargerMt5();
     ouvrirDialogue("modal-session");
-  });
-
-  /* --- Diagnostic réseau ---------------------------------------------- */
-  $("se-reseau").addEventListener("click", async () => {
-    const bouton = $("se-reseau");
-    const resume = $("se-reseau-resume");
-    const liste = $("se-reseau-liste");
-    bouton.disabled = true;
-    resume.textContent = "Test en cours…";
-    try {
-      const r = await fetch("/api/reseau");
-      const data = await r.json();
-      liste.hidden = false;
-      liste.innerHTML = "";
-      for (const h of data.hotes || []) {
-        const li = document.createElement("li");
-        li.className = h.joignable ? "ok" : "ko";
-        li.textContent = h.joignable
-          ? `OK — ${h.libelle} (${h.hote}) · ${h.ms} ms`
-          : `ÉCHEC — ${h.libelle} (${h.hote}) · ${h.motif || "injoignable"}`;
-        liste.appendChild(li);
-      }
-      resume.textContent = data.site_joignable
-        ? `Site joignable à ${data.verifie_le}${data.proxy_configure ? " (proxy configuré)" : ""}.`
-        : `Site injoignable à ${data.verifie_le} : sans VPN/proxy, la connexion ne peut pas aboutir.`;
-    } catch (e) {
-      resume.textContent = "Test impossible : " + (e.message || "erreur réseau");
-    } finally {
-      bouton.disabled = false;
-    }
-  });
-
-  /* --- Connexion supervisée via votre navigateur --------------------- */
-  $("se-navigateur").addEventListener("click", async () => {
-    const bouton = $("se-navigateur");
-    const statut = $("se-nav-statut");
-    const libelle = bouton.textContent;
-    bouton.disabled = true;
-    bouton.textContent = "Fenêtre ouverte — connectez-vous…";
-    statut.hidden = false;
-    statut.dataset.etat = "CONNEXION";
-    statut.querySelector("span").textContent =
-      "Edge est ouvert. Connectez-vous (email, mot de passe, captcha) : la console ne surveille que le résultat.";
-    afficherMessage("se-erreur", "");
-    try {
-      const r = await fetch("/api/session/navigateur", { method: "POST" });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.detail || "Connexion impossible.");
-      statut.hidden = true;
-      rendreSession(data);
-      chargerReglages();
-    } catch (e) {
-      statut.hidden = true;
-      afficherMessage("se-erreur", e.message || "Connexion impossible.");
-    } finally {
-      bouton.disabled = false;
-      bouton.textContent = libelle;
-    }
   });
 
   /* ------------------------------------------------------------------ */
   /* Démarrage                                                           */
   /* ------------------------------------------------------------------ */
-  chargerSession();
+  chargerMt5();
   chargerReglages();
   const ouvrirDepuisFragment = () => {
-    if (location.hash === "#session") ouvrirDialogue("modal-session");
+    if (location.hash === "#mt5") ouvrirDialogue("modal-session");
     if (location.hash === "#reglages") ouvrirDialogue("modal-reglages");
   };
   ouvrirDepuisFragment();
