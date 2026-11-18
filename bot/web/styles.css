@@ -975,7 +975,32 @@ td.pnl.neg { color: var(--danger); }
 /* Bouton principal de connexion via navigateur */
 .btn.big { padding: 13px 18px; font-size: 13.5px; min-height: 48px; }
 .btn.block { display: flex; width: 100%; justify-content: center; }
-.ligne-boutons { display: flex; justify-content: flex-end; margin-top: 8px; }
+.ligne-boutons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+.mt5-connexion {
+  margin: 16px 0;
+  padding: 14px 14px 12px;
+  border: 1px solid rgba(110, 168, 255, .28);
+  border-radius: var(--radius-sm);
+  background: rgba(110, 168, 255, .06);
+}
+.mt5-connexion-titre {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+.mt5-connexion > .hint { margin-bottom: 12px; }
+.mt5-connexion .hint.danger { color: #ff8a94; }
+.mt5-connexion .champ input { border-color: rgba(110, 168, 255, .3); }
+.mt5-connexion .ligne-boutons .btn.block { flex: 1; }
+.champs-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  margin-top: 10px;
+}
 .etat-ligne.nav {
   color: #ffd79a;
   background: rgba(255, 182, 72, .07);

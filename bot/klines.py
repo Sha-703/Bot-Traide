@@ -26,7 +26,7 @@ def iterer_ticks(prefixe: str, jours: list, cache: Path) -> Iterator[tuple[float
         if not chemin.exists():
             cache.mkdir(parents=True, exist_ok=True)
             url = f"https://data.binance.vision/data/spot/daily/klines/{prefixe}/1s/{nom}"
-            print(f"  ↓ {nom} …", flush=True)
+            print(f"  download {nom} ...", flush=True)
             urllib.request.urlretrieve(url, chemin)
         try:
             with zipfile.ZipFile(chemin) as z:

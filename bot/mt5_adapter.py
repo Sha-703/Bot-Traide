@@ -46,24 +46,95 @@ def _charger_mt5():
     return mt5
 
 
-def _connecter(chemin: str | None = None):
+CREDITS_EN_MEMOIRE: dict | None = None  # jamais sérialisé, jamais logué
+
+
+def _initialize_mt5(chemin: str | None = None, login=None, password=None, server=None):
+    """Initialise MT5 et exige un compte DÉMO (trade_mode ∈ {0, 1})."""
     mt5 = _charger_mt5()
-    # Tentative en mode automatique (utilise le terminal déjà démarré),
-    # sinon avec le chemin explicite.
-    if mt5.initialize():
-        return mt5
-    if mt5.initialize(path=chemin_mt5(chemin)):
-        return mt5
-    code, detail = mt5.last_error()
     try:
         mt5.shutdown()
     except Exception:
         pass
-    raise MT5Indisponible(
-        f"Terminal MT5 indisponible (code {code} : {detail}). "
-        "Ouvrez le terminal Weltrade MT5 et connectez-vous au compte demo, "
-        f"et vérifiez le chemin : {chemin_mt5(chemin)}"
-    )
+    chemin = chemin_mt5(chemin)
+    if login is not None and password is not None and server:
+        ok = mt5.initialize(
+            path=chemin,
+            login=int(login),
+            server=str(server),
+            password=str(password),
+        )
+    else:
+        ok = bool(mt5.initialize()) or bool(mt5.initialize(path=chemin))
+    if not ok:
+        code, detail = mt5.last_error()
+        raise MT5Indisponible(
+            f"Terminal MT5 indisponible (code {code} : {detail})."
+        )
+    info = mt5.account_info()
+    if info is None:
+        raise MT5Indisponible(
+            "Terminal démarré mais aucun compte connecté — impossible de vérifier DEMO."
+        )
+    if getattr(info, "trade_mode", None) not in (0, 1):
+        raise MT5Indisponible(
+            f"Compte non démo détecté (trade_mode={getattr(info, 'trade_mode', '?')}). "
+            "La console refuse tout compte autre que DÉMO, par design."
+        )
+    return mt5
+
+
+def se_connecter_avec_credits(login, password, server, chemin: str | None = None) -> dict[str, Any]:
+    """Connexion à un compte DÉMO via identifiants — mémoire seulement."""
+    try:
+        login_entier = int(str(login).strip())
+    except (TypeError, ValueError) as exc:
+        raise MT5Indisponible(
+            f"Identifiant invalide (doit être un nombre) : {login!r}"
+        ) from exc
+    mot_de_passe = str(password or "").strip()
+    if not mot_de_passe:
+        raise MT5Indisponible("Mot de passe vide.")
+    server = str(server or "").strip()
+    if not server:
+        raise MT5Indisponible("Serveur requis (ex. Weltrade-Demo).")
+
+    global CREDITS_EN_MEMOIRE
+    ancien = CREDITS_EN_MEMOIRE
+    try:
+        CREDITS_EN_MEMOIRE = {
+            "login": login_entier,
+            "password": mot_de_passe,
+            "server": server,
+        }
+        _initialize_mt5(chemin, login=login_entier, password=mot_de_passe, server=server)
+    except MT5Indisponible:
+        CREDITS_EN_MEMOIRE = ancien
+        raise
+    return informations_compte(chemin)
+
+
+def oublier_connexion_mt5() -> None:
+    """Oublie le mot de passe en mémoire ; reprend la détection du terminal."""
+    global CREDITS_EN_MEMOIRE
+    CREDITS_EN_MEMOIRE = None
+    try:
+        espace = _charger_mt5()
+        espace.shutdown()
+    except Exception:
+        pass
+
+
+def _connecter(chemin: str | None = None, exiger_demo: bool = True):
+    """Connexion : identifiants stockés en mémoire, sinon terminal déjà démarré."""
+    if CREDITS_EN_MEMOIRE:
+        return _initialize_mt5(
+            chemin,
+            login=CREDITS_EN_MEMOIRE["login"],
+            password=CREDITS_EN_MEMOIRE["password"],
+            server=CREDITS_EN_MEMOIRE["server"],
+        )
+    return _initialize_mt5(chemin)
 
 
 def informations_compte(chemin: str | None = None) -> dict[str, Any]:
@@ -221,6 +292,164 @@ class SourceMT5(SourceDePrix):
     async def fermer(self) -> None:
         self._arret = True
         self.etat = EtatConnexion.DECONNECTE
+
+
+# --------------------------------------------------------------------------- #
+#  Ordres marché (DÉMO uniquement — exigence de compte démo vérifiée)
+# --------------------------------------------------------------------------- #
+
+MAGIQUE = 777001  # signature exclusive de ce bot — jamais un ordre humain
+
+
+def _valider_volume(mt5, info_symbole, volume: float) -> float:
+    """Ajuste au volume minimum et au pas autorisé du symbole."""
+    step = info_symbole.volume_step
+    minimum = info_symbole.volume_min
+    ajust = minimum + round((volume - minimum) / step) * step
+    return max(minimum, round(ajust, 2))
+
+
+def _mode_remplissage(mt5, info_symbole):
+    """Choisit le mode de remplissage permis par le symbole (FOK sinon IOC, sinon RETURN)."""
+    mode = getattr(info_symbole, "filling_mode", 0)
+    if mode & 1:
+        return mt5.ORDER_FILLING_FOK
+    if mode & 2:
+        return mt5.ORDER_FILLING_IOC
+    return mt5.ORDER_FILLING_RETURN
+
+
+def envoyer_ordre_marche(
+    symbole: str,
+    direction,  # Direction.ACHAT | Direction.VENTE
+    volume: float,
+    sl_points: int,
+    tp_points: int,
+    chemin: str | None = None,
+    magique: int = MAGIQUE,
+    commentaire: str = "PocketLab",
+) -> dict[str, Any]:
+    """Envoie un ordre MARCHÉ sur le compte DÉMO. Refuse tout compte non-démo.
+
+    Retourne ticket, deal, sl, tp, volume, prix.
+    """
+    from .strategie import Direction as _Dir
+
+    mt5 = _connecter(chemin, exiger_demo=True)
+    mt5.symbol_select(symbole, True)
+
+    info = mt5.symbol_info(symbole)
+    tick = mt5.symbol_info_tick(symbole)
+    if info is None or tick is None:
+        raise MT5Indisponible(f"Symbole {symbole} indisponible dans le terminal.")
+    if tick.bid <= 0 or tick.ask <= 0:
+        raise MT5Indisponible(f"Cotation muette pour {symbole} (marché fermé ?).")
+
+    point = info.point
+    volume = _valider_volume(mt5, info, volume)
+
+    if direction is _Dir.ACHAT:
+        type_ordre = mt5.ORDER_TYPE_BUY
+        prix = tick.ask
+        sl = prix - sl_points * point
+        tp = prix + tp_points * point
+    elif direction is _Dir.VENTE:
+        type_ordre = mt5.ORDER_TYPE_SELL
+        prix = tick.bid
+        sl = prix + sl_points * point
+        tp = prix - tp_points * point
+    else:
+        raise MT5Indisponible(f"Direction inattendue : {direction!r}")
+
+    requete = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": symbole,
+        "volume": volume,
+        "type": type_ordre,
+        "price": round(prix, info.digits),
+        "sl": round(sl, info.digits),
+        "tp": round(tp, info.digits),
+        "deviation": 20,
+        "magic": magique,
+        "comment": str(commentaire)[:31],
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": _mode_remplissage(mt5, info),
+    }
+
+    res = mt5.order_send(requete)
+    if res is None:
+        raise MT5Indisponible("L'ordre a échoué (aucun retour du terminal).")
+    retcode = getattr(res, "retcode", None)
+    if retcode != mt5.TRADE_RETCODE_DONE:
+        commentaire_err = getattr(res, "comment", "")
+        raise MT5Indisponible(
+            f"Ordre refusé (retcode={retcode}) {commentaire_err}".strip()
+        )
+    return {
+        "ticket": getattr(res, "order", None),
+        "deal": getattr(res, "deal", None),
+        "volume": volume,
+        "prix": prix,
+        "sl": sl,
+        "tp": tp,
+    }
+
+
+def position_du_symbole(symbole: str, chemin: str | None = None):
+    """Position ouverte du symbole (None si aucune). Refuse compte non-démo."""
+    mt5 = _connecter(chemin, exiger_demo=True)
+    positions = mt5.positions_get(symbol=symbole)
+    return positions[0] if positions else None
+
+
+def fermer_position(symbole: str, chemin: str | None = None) -> bool:
+    """Ferme la position du symbole au marché si elle existe."""
+    from .strategie import Direction as _Dir  # noqa: F401 (symétrie)
+
+    mt5 = _connecter(chemin, exiger_demo=True)
+    position = mt5.positions_get(symbol=symbole)
+    if not position:
+        return False
+    p = position[0]
+    info = mt5.symbol_info(symbole)
+    tick = mt5.symbol_info_tick(symbole)
+    if info is None or tick is None:
+        raise MT5Indisponible(f"{symbole} indisponible pour fermeture.")
+    if p.type == mt5.POSITION_TYPE_BUY:
+        type_ordre = mt5.ORDER_TYPE_SELL
+        prix = tick.bid
+    else:
+        type_ordre = mt5.ORDER_TYPE_BUY
+        prix = tick.ask
+    requete = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": symbole,
+        "volume": p.volume,
+        "type": type_ordre,
+        "price": round(prix, info.digits),
+        "position": p.ticket,
+        "deviation": 20,
+        "magic": MAGIQUE,
+        "comment": "fermeture PocketLab",
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": _mode_remplissage(mt5, info),
+    }
+    res = mt5.order_send(requete)
+    return bool(res and getattr(res, "retcode", None) == mt5.TRADE_RETCODE_DONE)
+
+
+def pnl_approx_eurusd(entree: float, sortie: float, volume: float, direction) -> float:
+    """Approx de P&L pour EUR/USD (contract 100.000).
+
+    N'est pas exact à la virgule (commissions, swap ignorés) — le solde
+    réel est affiché via account_info(). Ce calcul sert uniquement au
+    journal / aux gardes-fous.
+    """
+    from .strategie import Direction as _Dir
+
+    contrat = 100000.0
+    diff = (sortie - entree) if direction is _Dir.ACHAT else (entree - sortie)
+    return round(diff * contrat * volume, 2)
 
 
 class SoldeMT5Demo(SourceSolde):

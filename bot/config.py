@@ -88,10 +88,11 @@ class Settings:
     flux_prix: str = "simule"
     actif_binance: str = "BTCUSDT"
 
-    # --- MT5 (Weltrade, compte DÉMO, lecture seule) -----------------------
-    # MT5_DEMO=true active : ticks du terminal, solde du compte démo.
-    # MT5_EXE est réservé à une étape ultérieure (ordres RÉELS sur démo).
+    # --- MT5 (Weltrade, compte DÉMO) --------------------------------------
+    # Lecture seule par défaut. MT5_EXE=true active l'envoi d'ordres RÉELS
+    # sur le compte DÉMO (jamais sur un compte réel).
     mt5_demo: bool = False
+    mt5_exe: bool = False
     mt5_symbole: str = "EURUSD_i"
     mt5_chemin_terminal: str | None = None
     mt5_volume: float = 0.01
@@ -149,6 +150,7 @@ class Settings:
             "flux_prix": self.flux_prix,
             "actif_binance": self.actif_binance,
             "mt5_demo": self.mt5_demo,
+            "mt5_exe": self.mt5_exe,
             "mt5_symbole": self.mt5_symbole,
             "duree_expiration_s": self.duree_expiration_s,
             "payout": self.payout,
@@ -199,6 +201,15 @@ def charger_config(chemin_env: Path | None = None) -> Settings:
     mt5_volume = _lire_float("MT5_VOLUME", 0.01)
     mt5_sl_points = _lire_int("MT5_SL_POINTS", 50)
     mt5_tp_points = _lire_int("MT5_TP_POINTS", 100)
+    mt5_exe = (os.getenv("MT5_EXE") or "").strip().lower() in {
+        "true", "1", "oui", "yes", "on",
+    }
+    if mt5_exe and not mt5_demo:
+        raise ConfigError(
+            "MT5_EXE=true exige MT5_DEMO=true : l'envoi d'ordres réels "
+            "sur compte réel est verrouillé par design et aucune exécution "
+            "n'a lieu sans compte démo."
+        )
 
     # 2) En mode réel, un SSID est indispensable et une double confirmation
     #    est exigée : un simple `MODE_REEL=True` ne suffit pas.

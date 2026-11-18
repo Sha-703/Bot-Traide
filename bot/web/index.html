@@ -383,6 +383,30 @@
 
       <p class="hint" id="mt5-note">Connexion au terminal en cours…</p>
 
+      <section class="mt5-connexion" aria-labelledby="mt5-connexion-titre">
+        <p class="mt5-connexion-titre" id="mt5-connexion-titre">Connexion directe — compte DÉMO uniquement</p>
+        <p class="hint">Aucun identifiant n'est écrit sur disque : le mot de passe vit dans la mémoire du process et disparaîtra à la fermeture.</p>
+        <label class="champ large">
+          <span>Serveur</span>
+          <input id="mt5-connexion-server" type="text" autocomplete="off" spellcheck="false" placeholder="Weltrade-Demo" />
+        </label>
+        <div class="champs-2">
+          <label class="champ large">
+            <span>Identifiant (login)</span>
+            <input id="mt5-connexion-login" type="text" autocomplete="off" inputmode="numeric" spellcheck="false" placeholder="43433219" />
+          </label>
+          <label class="champ large">
+            <span>Mot de passe</span>
+            <input id="mt5-connexion-password" type="password" autocomplete="off" spellcheck="false" placeholder="••••••••" />
+          </label>
+        </div>
+        <div class="ligne-boutons">
+          <button type="button" class="btn block" id="mt5-connexion-btn">Se connecter</button>
+          <button type="button" class="btn ghost small" id="mt5-deconnexion-btn" hidden>Déconnecter</button>
+        </div>
+        <p class="hint danger">Comptes RÉELS refusés par design : la console exige ACCOUNT_TRADE_MODE_DEMO.</p>
+      </section>
+
       <button class="btn big block" id="mt5-rafraichir" type="button">Actualiser</button>
 
       <div class="encart danger">

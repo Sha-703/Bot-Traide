@@ -781,6 +781,9 @@
       note.textContent =
         data.note || `Flux mt5_demo · ${data.symbole} · compte démo #${data.login}`;
     }
+    // État du bouton connexion directe (mémoire uniquement)
+    const btnDeco = $("mt5-deconnexion-btn");
+    if (btnDeco) btnDeco.hidden = !data.connexion_memoire;
   }
 
   async function chargerMt5() {
@@ -798,6 +801,47 @@
   $("btn-connexion").addEventListener("click", async () => {
     await chargerMt5();
     ouvrirDialogue("modal-session");
+  });
+
+  // --- Connexion directe par identifiants (mémoire uniquement) -----------
+  $("mt5-connexion-btn").addEventListener("click", async () => {
+    afficherMessage("se-erreur", "");
+    const server = $("mt5-connexion-server").value.trim();
+    const login = $("mt5-connexion-login").value.trim();
+    const password = $("mt5-connexion-password").value;
+
+    if (!server || !login || !password) {
+      afficherMessage("se-erreur", "Serveur, identifiant et mot de passe sont requis.");
+      return;
+    }
+    const bouton = $("mt5-connexion-btn");
+    bouton.disabled = true;
+    bouton.textContent = "Connexion…";
+    try {
+      const r = await fetch("/api/mt5/connexion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ server, login, password }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || "Connexion refusée.");
+      $("mt5-connexion-password").value = "";
+      rendreMt5(data);
+    } catch (e) {
+      afficherMessage("se-erreur", e.message || "Connexion impossible.");
+    } finally {
+      bouton.disabled = false;
+      bouton.textContent = "Se connecter";
+    }
+  });
+
+  $("mt5-deconnexion-btn").addEventListener("click", async () => {
+    try {
+      await fetch("/api/mt5/connexion", { method: "DELETE" });
+      $("mt5-connexion-password").value = "";
+      $("mt5-connexion-login").value = "";
+      await chargerMt5();
+    } catch { /* console hors ligne */ }
   });
 
   /* ------------------------------------------------------------------ */

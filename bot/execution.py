@@ -27,6 +27,13 @@ from typing import Any
 from .config import Settings
 from .journalisation import Journal, TradeJournalise
 from .reglages import Reglages
+from .mt5_adapter import (
+    envoyer_ordre_marche,
+    fermer_position,
+    MT5Indisponible,
+    pnl_approx_eurusd,
+    position_du_symbole,
+)
 from .risque import GestionRisque
 from .strategie import Direction, Signal
 
@@ -58,6 +65,8 @@ class Ordre:
     echeance_ts: float
     mode: str
     raison: str = ""
+    ticket_mt5: int = 0
+    volume_mt5: float = 0.0
 
 
 @dataclass
@@ -185,6 +194,52 @@ class MoteurExecution:
         self.risque.valider(montant, capital)
 
         # --- Verrou n°3 : création + journalisation -------------------
+        if self.settings.mt5_exe and self.settings.mt5_demo:
+            # Chemin DÉMO MT5 — l'ordre part réellement sur le compte démo.
+            # Il n'arrive JAMAIS sur un compte réel : _connecter() le refuse.
+            try:
+                mt5_info = envoyer_ordre_marche(
+                    self.actif,
+                    signal.direction,
+                    self.settings.mt5_volume,
+                    self.settings.mt5_sl_points,
+                    self.settings.mt5_tp_points,
+                    chemin=self.settings.mt5_chemin_terminal,
+                    commentaire="PocketLab",
+                )
+            except MT5Indisponible as exc:
+                self.journal.evenement(
+                    "erreur", "mt5", f"Ordre MT5 refusé : {exc}"
+                )
+                raise ExecutionRefusee(f"MT5 : {exc}") from exc
+            ordre = Ordre(
+                identifiant=f"MT5-{mt5_info['ticket']}",
+                actif=self.actif,
+                direction=signal.direction,
+                montant=self.reglages.montant_trade,
+                prix_entree=mt5_info["prix"],
+                expiration_s=self.reglages.duree_expiration_s,
+                ouverture_ts=signal.horodatage,
+                echeance_ts=signal.horodatage + self.reglages.duree_expiration_s,
+                mode="MT5_DEMO",
+                raison=signal.raison,
+                ticket_mt5=int(mt5_info["ticket"] or 0),
+                volume_mt5=float(mt5_info["volume"]),
+            )
+            self.journal.evenement(
+                "info",
+                "execution",
+                f"Ordre DÉMO MT5 ouvert {ordre.direction.value} "
+                f"{ordre.volume_mt5} lot {ordre.actif}",
+                identifiant=ordre.identifiant,
+                prix_entree=ordre.prix_entree,
+                sl=mt5_info["sl"],
+                tp=mt5_info["tp"],
+            )
+            self.risque.enregistrer_trade(self.reglages.montant_trade)
+            self.ordre_en_cours = ordre
+            return ordre
+
         ordre = self.courtier.ouvrir(
             signal, montant, self.reglages.duree_expiration_s
         )
@@ -211,7 +266,23 @@ class MoteurExecution:
         if ordre is None:
             raise ExecutionRefusee("Aucun ordre en cours à résoudre.")
 
-        resultat = self.courtier.resoudre(ordre, prix_sortie)
+        if getattr(ordre, "ticket_mt5", 0):
+            # Chemin DÉMO MT5 : fermer la position si elle est encore ouverte,
+            # sinon "calculer le prix de sortie" à partir de tick actuel.
+            position = position_du_symbole(ordre.actif)
+            if position is not None:
+                fermer_position(ordre.actif, self.settings.mt5_chemin_terminal)
+            pnl = pnl_approx_eurusd(
+                ordre.prix_entree, prix_sortie, ordre.volume_mt5, ordre.direction
+            )
+            if pnl > 0:
+                resultat = ResultatOrdre("GAGNANT", round(pnl, 2), prix_sortie)
+            elif pnl < 0:
+                resultat = ResultatOrdre("PERDANT", round(pnl, 2), prix_sortie)
+            else:
+                resultat = ResultatOrdre("REMBOURSE", 0.0, prix_sortie)
+        else:
+            resultat = self.courtier.resoudre(ordre, prix_sortie)
         self.risque.enregistrer_resultat(resultat.pnl)
         nouveau_capital = capital + resultat.pnl
 

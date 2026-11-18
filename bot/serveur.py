@@ -40,7 +40,13 @@ from .navigateur import (
 from .reglages import ReglageInvalide, Reglages
 from .session import GestionnaireSession, SessionInvalide
 from .sonde import sonder
-from .mt5_adapter import diagnostiquer_mt5
+from .mt5_adapter import (
+    CREDITS_EN_MEMOIRE,
+    MT5Indisponible,
+    diagnostiquer_mt5,
+    oublier_connexion_mt5,
+    se_connecter_avec_credits,
+)
 from .verrou import VerrouInstance
 
 WEB = Path(__file__).resolve().parent / "web"
@@ -310,7 +316,7 @@ def creer_application(settings: Settings, moteur: Moteur | None = None) -> FastA
         return JSONResponse({"regions": regions})
 
     @app.get("/api/mt5")
-    async def etat_mt5() -> JSONResponse:
+    async def etat_mt5(request: Request) -> JSONResponse:
         """État du terminal MT5 et du compte démo. Aucun secret."""
         rapport = await asyncio.to_thread(
             diagnostiquer_mt5,
@@ -318,6 +324,82 @@ def creer_application(settings: Settings, moteur: Moteur | None = None) -> FastA
             settings.mt5_symbole,
             settings.mt5_demo,
         )
+        # Exposition stricte : le bot ne s'auto-autorise jamais en réel —
+        # mt5_exe seulement avec mt5_demo actif.
+        rapport["mt5_exe"] = settings.mt5_exe and settings.mt5_demo
+        rapport["mt5_volume"] = settings.mt5_volume
+        rapport["mt5_sl_points"] = settings.mt5_sl_points
+        rapport["mt5_tp_points"] = settings.mt5_tp_points
+        rapport["connexion_memoire"] = CREDITS_EN_MEMOIRE is not None
+        return JSONResponse(rapport)
+
+    @app.post("/api/mt5/connexion")
+    async def connexion_mt5(charge: dict) -> JSONResponse:
+        """Connexion directe par identifiants — compte DÉMO obligatoire.
+
+        Le mot de passe ne quitte pas la mémoire vive du process : jamais
+        écrit sur disque, jamais logué, jamais versionné. Tout compte
+        autre que DÉMO est refusé par _initialize_mt5().
+        """
+        if not settings.mt5_demo:
+            raise HTTPException(
+                status_code=400,
+                detail="MT5_DEMO=false dans .env — activation requise.",
+            )
+        login = charge.get("login")
+        password = charge.get("password")
+        server = charge.get("server")
+        if not (login and str(login).strip()):
+            raise HTTPException(status_code=400, detail="Identifiant requis.")
+        if not password:
+            raise HTTPException(status_code=400, detail="Mot de passe requis.")
+        if not server:
+            raise HTTPException(status_code=400, detail="Serveur requis (ex. Weltrade-Demo).")
+        try:
+            await asyncio.to_thread(
+                se_connecter_avec_credits,
+                login,
+                password,
+                server,
+                settings.mt5_chemin_terminal,
+            )
+        except MT5Indisponible as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        rapport = await asyncio.to_thread(
+            diagnostiquer_mt5,
+            settings.mt5_chemin_terminal,
+            settings.mt5_symbole,
+            settings.mt5_demo,
+        )
+        rapport["mt5_exe"] = settings.mt5_exe and settings.mt5_demo
+        rapport["connexion_memoire"] = True
+        return JSONResponse(rapport)
+
+    @app.get("/api/mt5/connexion")
+    async def session_mt5() -> JSONResponse:
+        """Résumé de la session mémoire — jamais le mot de passe."""
+        if CREDITS_EN_MEMOIRE:
+            return JSONResponse(
+                {
+                    "connecte": True,
+                    "login": CREDITS_EN_MEMOIRE["login"],
+                    "server": CREDITS_EN_MEMOIRE["server"],
+                    "masque": "••••••••",
+                }
+            )
+        return JSONResponse({"connecte": False})
+
+    @app.delete("/api/mt5/connexion")
+    async def deconnexion_mt5() -> JSONResponse:
+        await asyncio.to_thread(oublier_connexion_mt5)
+        rapport = await asyncio.to_thread(
+            diagnostiquer_mt5,
+            settings.mt5_chemin_terminal,
+            settings.mt5_symbole,
+            settings.mt5_demo,
+        )
+        rapport["mt5_exe"] = settings.mt5_exe and settings.mt5_demo
+        rapport["connexion_memoire"] = False
         return JSONResponse(rapport)
 
     @app.get("/api/reseau")
