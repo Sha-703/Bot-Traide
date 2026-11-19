@@ -631,11 +631,14 @@
       const r = await fetch("/api/mt5", { cache: "no-store" });
       const d = r.ok ? await r.json() : null;
       if (d && d.ouvert) {
-        el.innerHTML = `Flux actif : <b>MT5 · ${d.symbole}</b> — ticks réels du compte démo (lecture seule, aucun ordre).`;
-        el.classList.add("actif");
+        const ordres = d.mt5_exe
+          ? "ORDRES DÉMO RÉELS sur signal"
+          : "lecture seule, aucune exécution";
+        el.innerHTML = `Flux actif : <b>MT5 · ${d.symbole}</b> — ${ordres}.`;
+        el.classList.add(d.mt5_exe ? "actif danger" : "actif");
       } else {
-        el.innerHTML = `Flux actif : <b>simulation</b> — activez <code>MT5_DEMO=true</code> dans <code>.env</code> + redémarrez pour utiliser MT5.`;
-        el.classList.remove("actif");
+        el.innerHTML = `Flux actif : <b>simulation</b> — activez <code>MT5_DEMO=true</code> + redémarrez pour utiliser MT5.`;
+        el.classList.remove("actif", "danger");
       }
     } catch {
       el.textContent = "Flux actif : inconnu (serveur injoignable).";
@@ -781,6 +784,9 @@
       note.textContent =
         data.note || `Flux mt5_demo · ${data.symbole} · compte démo #${data.login}`;
     }
+    // Bannière MT5_EXE=true → ordres RÉELS démo
+    const banner = $("mt5-exe-banner");
+    if (banner) banner.hidden = !data.mt5_exe;
     // État du bouton connexion directe (mémoire uniquement)
     const btnDeco = $("mt5-deconnexion-btn");
     if (btnDeco) btnDeco.hidden = !data.connexion_memoire;

@@ -512,6 +512,11 @@ td.pnl.neg { color: var(--danger); }
   font-size: 12px;
 }
 .hint-actif b { color: var(--accent); }
+.hint-actif.danger {
+  background: rgba(255, 95, 109, .12);
+  border-color: rgba(255, 95, 109, .4);
+}
+.hint-actif.danger b { color: var(--danger); }
 
 .card-actions .hint { margin: 0; flex: 1 1 100%; }
 
@@ -995,6 +1000,17 @@ td.pnl.neg { color: var(--danger); }
 .mt5-connexion .hint.danger { color: #ff8a94; }
 .mt5-connexion .champ input { border-color: rgba(110, 168, 255, .3); }
 .mt5-connexion .ligne-boutons .btn.block { flex: 1; }
+
+.mt5-exe-banner {
+  margin: 0 0 12px 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 95, 109, .14);
+  border: 1px solid rgba(255, 95, 109, .45);
+  color: #ff8f99;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .champs-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
