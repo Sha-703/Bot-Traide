@@ -103,16 +103,16 @@
       <article class="card chart-card">
         <header class="card-head">
           <div>
-            <h2>Prix &amp; moyennes exponentielles</h2>
+            <h2>Prix &amp; bandes Bollinger</h2>
             <p class="muted">
-              Croisement EMA rapide / lente — matière première des signaux
+              Retour à la moyenne sur bougies M1 — 20 périodes, 2 écarts-types
               <span id="chauffe" class="chauffe">· chauffe en cours</span>
             </p>
           </div>
           <div class="legend">
             <span class="legend-item"><i class="swatch price"></i>Prix</span>
-            <span class="legend-item"><i class="swatch fast"></i><span id="legend-fast">EMA 9</span></span>
-            <span class="legend-item"><i class="swatch slow"></i><span id="legend-slow">EMA 21</span></span>
+            <span class="legend-item"><i class="swatch fast"></i><span id="legend-fast">Moyenne 20</span></span>
+            <span class="legend-item"><i class="swatch slow"></i><span id="legend-slow">Bande haute 2σ</span></span>
           </div>
         </header>
         <div class="chart-wrap tall" id="wrap-price">
@@ -148,7 +148,7 @@
               </tr>
             </thead>
             <tbody id="rows-trades">
-              <tr class="placeholder"><td colspan="9">Aucun trade pour le moment — premier signal après la chauffe des moyennes mobiles.</td></tr>
+              <tr class="placeholder"><td colspan="9">Aucun trade pour le moment — premier signal après la chauffe des 20 bougies M1.</td></tr>
             </tbody>
           </table>
         </div>
@@ -211,8 +211,8 @@
           </div>
         </div>
         <div class="ema-row">
-          <div><span>EMA rapide</span><b class="mono" id="ema-r">—</b></div>
-          <div><span>EMA lente</span><b class="mono" id="ema-l">—</b></div>
+          <div><span id="legend-r">Moyenne 20</span><b class="mono" id="ema-r">—</b></div>
+          <div><span id="legend-l">Bande haute 2σ</span><b class="mono" id="ema-l">—</b></div>
         </div>
       </article>
 

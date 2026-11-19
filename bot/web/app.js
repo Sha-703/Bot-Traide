@@ -231,15 +231,14 @@
       solde.origine === "plateforme"
         ? "solde du compte · lecture seule"
         : solde.origine === "mt5_demo"
-          ? "compte démo MT5 · lecture seule"
+          ? s.config && s.config.mt5_exe
+            ? "compte démo MT5 · ordres démo actifs"
+            : "compte démo MT5 · lecture seule"
           : solde.origine === "indisponible"
             ? "solde du compte indisponible"
             : `papier · initial ${fmtMoney(s.capital_initial)}`;
     $("kpi-capital-sub").textContent = sousTitre;
-    $("kpi-capital-sub").title =
-      (solde.note || "") +
-      " Capital papier du bot : le flux de prix (synthétique ou Binance) ne " +
-      "fournit aucun solde. Aucun compte Binance n'est connecté.";
+    $("kpi-capital-sub").title = solde.note || "Capital affiché par Weltrade MT5 · compte démo.";
 
     const pnl = $("kpi-pnl");
     pnl.textContent = `${signe(s.pnl_session)}${fmtMoney(s.pnl_session)}`;
@@ -291,17 +290,27 @@
   function rendreSignal(s) {
     const st = s.strategie;
     const d = s.dernier_signal;
+    const cfg = s.config || {};
+    const bollinger = String(cfg.strategie || "ema").toLowerCase() === "bollinger";
     const chip = $("signal-chip");
     chip.textContent = d ? d.direction : "NEUTRE";
     chip.dataset.dir = d ? d.direction : "NEUTRE";
-    $("signal-raison").textContent = d ? d.raison : "En attente d'un croisement validé…";
+    $("signal-raison").textContent = d
+      ? d.raison
+      : bollinger
+        ? "En attente d'un signal Bollinger (bande cassée)…"
+        : "En attente d'un croisement validé…";
     $("signal-prix").textContent = st.dernier_prix ? fmtPrix(st.dernier_prix) : "—";
     $("signal-ecart").textContent = nfMoney.format(st.ecart_bps ?? 0);
     $("signal-tendance").textContent = st.tendance;
     $("ema-r").textContent = st.ema_rapide ? fmtPrix(st.ema_rapide) : "—";
     $("ema-l").textContent = st.ema_lente ? fmtPrix(st.ema_lente) : "—";
-    $("legend-fast").textContent = `EMA ${s.config.ema_rapide}`;
-    $("legend-slow").textContent = `EMA ${s.config.ema_lente}`;
+    $("legend-fast").textContent = bollinger ? "Moyenne 20" : `EMA ${cfg.ema_rapide ?? 9}`;
+    $("legend-slow").textContent = bollinger ? "Bande haute 2σ" : `EMA ${cfg.ema_lente ?? 21}`;
+    const lr = $("legend-r");
+    const ll = $("legend-l");
+    if (lr) lr.textContent = bollinger ? "Moyenne 20" : "EMA rapide";
+    if (ll) ll.textContent = bollinger ? "Bande haute 2σ" : "EMA lente";
 
     // Indique clairement pourquoi aucun signal n'apparaît au démarrage.
     const chauffe = $("chauffe");
