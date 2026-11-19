@@ -32,7 +32,7 @@ from .reglages import Reglages
 from .mt5_adapter import SourceMT5, SoldeMT5Demo
 from .risque import GestionRisque, Limites, RisqueRefuse
 from .solde import construire_source_solde
-from .strategie import StrategieMoyennesMobiles
+from .strategie import StrategieBollinger, StrategieMoyennesMobiles
 
 
 class Statut(str, Enum):
@@ -62,12 +62,24 @@ class Moteur:
         # les références (risque, exécution) restent valides.
         self.reglages = Reglages.depuis_settings(settings)
 
-        self.strategie = StrategieMoyennesMobiles(
-            ema_rapide=settings.ema_rapide,
-            ema_lente=settings.ema_lente,
-            seuil_ecart_bps=settings.seuil_ecart_bps,
-            cooldown_secondes=settings.cooldown_signal_s,
-        )
+        if settings.strategie == "ema":
+            self.strategie = StrategieMoyennesMobiles(
+                ema_rapide=settings.ema_rapide,
+                ema_lente=settings.ema_lente,
+                seuil_ecart_bps=settings.seuil_ecart_bps,
+                cooldown_secondes=settings.cooldown_signal_s,
+            )
+        elif settings.strategie == "bollinger":
+            self.strategie = StrategieBollinger(
+                periode_bougies=settings.bollinger_periode,
+                k=settings.bollinger_k,
+                cooldown_secondes=settings.cooldown_signal_s,
+            )
+        else:
+            raise RuntimeError(
+                f"STRATEGIE={settings.strategie!r} inconnue : "
+                "attendu 'ema' ou 'bollinger'."
+            )
         self.risque = GestionRisque(
             Limites(
                 montant_max_position=self.reglages.taille_max_position,

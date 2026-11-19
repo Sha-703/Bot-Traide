@@ -116,6 +116,11 @@ class Settings:
     cooldown_signal_s: int = 30
 
     # --- Stratégie ----------------------------------------------------------
+    # "ema"       : croisement rapide/lent, confirmations (défaut historique)
+    # "bollinger" : retour à la moyenne sur bougies M1 — EURUSD_i/Weltrade
+    strategie: str = "ema"
+    bollinger_periode: int = 20
+    bollinger_k: float = 2.0
     ema_rapide: int = 9
     ema_lente: int = 21
     seuil_ecart_bps: float = 1.0  # écart minimal entre EMAs (points de base)
@@ -234,6 +239,13 @@ def charger_config(chemin_env: Path | None = None) -> Settings:
             f"EMA_RAPIDE ({ema_rapide}) doit être inférieure à EMA_LENTE ({ema_lente})."
         )
 
+    # 1 quart) Stratégie : explicite, jamais devinée
+    strategie = (os.getenv("STRATEGIE") or "ema").strip().lower()
+    if strategie not in ("ema", "bollinger"):
+        raise ConfigError(
+            f"STRATEGIE={strategie!r} inconnue — attendu 'ema' ou 'bollinger'."
+        )
+
     dossier_journal = Path(
         os.getenv("DOSSIER_JOURNAL") or (RACINE / "journal")
     )
@@ -261,6 +273,9 @@ def charger_config(chemin_env: Path | None = None) -> Settings:
         perte_max_journaliere=_lire_float("PERTE_MAX_JOURNALIERE", 30.0),
         trades_max_par_jour=_lire_int("TRADES_MAX_PAR_JOUR", 20),
         cooldown_signal_s=_lire_int("COOLDOWN_SIGNAL_S", 30),
+        strategie=strategie,
+        bollinger_periode=_lire_int("BOLLINGER_PERIODE", 20),
+        bollinger_k=_lire_float("BOLLINGER_K", 2.0),
         ema_rapide=ema_rapide,
         ema_lente=ema_lente,
         seuil_ecart_bps=_lire_float("SEUIL_ECART_BPS", 1.0),
