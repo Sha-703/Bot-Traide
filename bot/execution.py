@@ -196,14 +196,15 @@ class MoteurExecution:
         # --- Verrou n°3 : création + journalisation -------------------
         if self.settings.mt5_exe and self.settings.mt5_demo:
             # Chemin DÉMO MT5 — l'ordre part réellement sur le compte démo.
-            # Il n'arrive JAMAIS sur un compte réel : _connecter() le refuse.
+            # Les paramètres d'ordre (lot, SL/TP) viennent des réglages
+            # dynamiques appliqués depuis la console (hot-reloadable).
             try:
                 mt5_info = envoyer_ordre_marche(
                     self.actif,
                     signal.direction,
-                    self.settings.mt5_volume,
-                    self.settings.mt5_sl_points,
-                    self.settings.mt5_tp_points,
+                    self.reglages.mt5_volume,
+                    self.reglages.mt5_sl_points,
+                    self.reglages.mt5_tp_points,
                     chemin=self.settings.mt5_chemin_terminal,
                     commentaire="PocketLab",
                 )

@@ -606,34 +606,12 @@
   });
 
   /* --- Réglages démo MT5 -------------------------------------------- */
-  function remplirOrdreMt5(data) {
-    if (!data) return;
-    const set = (id, texte) => { const el = $(id); if (el) el.textContent = texte; };
-    if (data.configure && data.ouvert) {
-      set("rg-lot", `${formatLot(data.mt5_volume ?? 0.01)} lot`);
-      set("rg-sl-tp", `SL ${data.mt5_sl_points ?? "?"} pts · TP ${data.mt5_tp_points ?? "?"} pts`);
-      set("rg-levier", data.levier ? `1:${data.levier}` : "—");
-      set("rg-compte", data.nom || `#${data.login}`);
-    } else {
-      set("rg-lot", "—");
-      set("rg-sl-tp", "—");
-      set("rg-levier", "—");
-      set("rg-compte", data.erreur ? "indisponible" : "MT5_DEMO=false (.env)");
-    }
-  }
-
-  function formatLot(v) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n.toFixed(2) : String(v);
-  }
-
   function remplirReglages(r) {
     if (!r) return;
+    $("rg-mt5-volume").value = r.mt5_volume ?? 0.01;
+    $("rg-mt5-sl").value = r.mt5_sl_points ?? 50;
+    $("rg-mt5-tp").value = r.mt5_tp_points ?? 100;
     $("rg-trades").value = r.trades_max_par_jour;
-    fetch("/api/mt5", { cache: "no-store" })
-      .then((r2) => r2.ok ? r2.json() : null)
-      .then((d) => { if (d) remplirOrdreMt5(d); })
-      .catch(() => {});
     afficherMessage("rg-erreur", "");
     afficherMessage("rg-ok", "");
   }
@@ -648,6 +626,9 @@
   $("rg-enregistrer").addEventListener("click", async () => {
     const corps = {
       trades_max_par_jour: $("rg-trades").value,
+      mt5_volume: $("rg-mt5-volume").value,
+      mt5_sl_points: $("rg-mt5-sl").value,
+      mt5_tp_points: $("rg-mt5-tp").value,
       mode: "DEMO",
     };
     try {

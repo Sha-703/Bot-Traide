@@ -270,14 +270,25 @@
 
     <div class="modal-body">
       <fieldset class="groupe">
-        <legend>Ordre MT5</legend>
-        <div class="mt5-grid" style="grid-template-columns:repeat(2,1fr); margin:0; padding:0; border-top:0;">
-          <div class="mt5-item"><span>Lot</span><b id="rg-lot">—</b></div>
-          <div class="mt5-item"><span>SL / TP</span><b id="rg-sl-tp">—</b></div>
-          <div class="mt5-item"><span>Levier</span><b id="rg-levier">—</b></div>
-          <div class="mt5-item"><span>Compte</span><b id="rg-compte">—</b></div>
+        <legend>Ordre MT5 <em>(Démo Weltrade)</em></legend>
+        <div class="champs">
+          <label class="champ">
+            <span>Lot</span>
+            <input id="rg-mt5-volume" type="number" min="0.01" max="5" step="0.01" inputmode="decimal" />
+            <small>0,01 = minimum réglable. 0,01 lot = 1 000 $ notionnel ; 1,00 lot = 100 000 $.</small>
+          </label>
+          <label class="champ">
+            <span>Stop-Loss <em>points</em></span>
+            <input id="rg-mt5-sl" type="number" min="1" max="10000" step="1" inputmode="numeric" />
+            <small>Ordre se ferme automatiquement sur ce niveau — votre coupe en cas d'erreur.</small>
+          </label>
+          <label class="champ">
+            <span>Take-Profit <em>points</em></span>
+            <input id="rg-mt5-tp" type="number" min="1" max="10000" step="1" inputmode="numeric" />
+            <small>Ordre se ferme automatiquement sur gain — clôture en vert.</small>
+          </label>
         </div>
-        <p class="hint">La taille et les limites sont dans <code>.env</code> — redémarrez la console pour appliquer un changement.</p>
+        <p class="hint">Ces réglages sont appliqués immédiatement. Les ordres déjà ouverts gardent SL/TP initial.</p>
       </fieldset>
 
       <fieldset class="groupe">
@@ -286,7 +297,7 @@
           <label class="champ">
             <span>Trades max / jour</span>
             <input id="rg-trades" type="number" min="1" max="500" step="1" inputmode="numeric" />
-            <small>Signaux consécutifs — au-delà, la boucle se suspend d'elle-même jusqu'à demain.</small>
+            <small>Signal passé est ignoré quand le quota journalier est atteint.</small>
           </label>
         </div>
       </fieldset>

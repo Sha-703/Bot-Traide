@@ -341,14 +341,21 @@ class Moteur:
             trades_max_par_jour=nouveaux.trades_max_par_jour,
         )
         self.execution.courtier.payout = nouveaux.payout
-        self.alerte(
-            "info",
-            f"Réglages appliqués : mise {nouveaux.montant_trade:.2f} $ · "
-            f"plafond {nouveaux.taille_max_position:.2f} $ · "
-            f"risque {nouveaux.fraction_risque_par_trade:.2%} · "
-            f"quota {nouveaux.trades_max_par_jour}/jour · "
-            f"expiration {nouveaux.duree_expiration_s} s.",
-        )
+        if self.settings.mt5_exe and self.settings.mt5_demo:
+            msg = (
+                f"Réglages appliqués : lot MT5 {nouveaux.mt5_volume} · "
+                f"SL {nouveaux.mt5_sl_points} pts · TP {nouveaux.mt5_tp_points} pts · "
+                f"quota {nouveaux.trades_max_par_jour}/jour."
+            )
+        else:
+            msg = (
+                f"Réglages appliqués : mise {nouveaux.montant_trade:.2f} $ · "
+                f"plafond {nouveaux.taille_max_position:.2f} $ · "
+                f"risque {nouveaux.fraction_risque_par_trade:.2%} · "
+                f"quota {nouveaux.trades_max_par_jour}/jour · "
+                f"expiration {nouveaux.duree_expiration_s} s."
+            )
+        self.alerte("info", msg)
         self._diffuser()
 
     def _construire_source(self, session: Any | None) -> SourceDePrix:

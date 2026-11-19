@@ -25,6 +25,10 @@ BORNES: dict[str, tuple[float, float]] = {
     "trades_max_par_jour": (1, 500),
     "duree_expiration_s": (5, 3_600),
     "payout": (5.0, 99.0),  # en pourcentage
+    # MT5 (Weltrade, compte DÉMO)
+    "mt5_volume": (0.01, 5.0),          # en lot (0,01 = min)
+    "mt5_sl_points": (1, 10_000),      # points (1 point = 0,00001)
+    "mt5_tp_points": (1, 10_000),
 }
 
 MODES_CONNUS = ("DEMO", "OBSERVATION", "REEL")
@@ -49,6 +53,10 @@ class Reglages:
     # Flux de prix : "simule" (aucun réseau) ou "binance" (prix réels publics,
     # ordres papier). Indépendant du mode d'exécution.
     flux_prix: str = "simule"
+    # MT5 (Weltrade, compte DÉMO) : valeurs effectives, modifiables à chaud.
+    mt5_volume: float = 0.01
+    mt5_sl_points: int = 50
+    mt5_tp_points: int = 100
 
     # ------------------------------------------------------------------ #
     @classmethod
@@ -63,6 +71,9 @@ class Reglages:
             payout=settings.payout,
             mode=settings.mode,
             flux_prix=settings.flux_prix,
+            mt5_volume=settings.mt5_volume,
+            mt5_sl_points=settings.mt5_sl_points,
+            mt5_tp_points=settings.mt5_tp_points,
         )
 
     def copier_depuis(self, autre: "Reglages") -> None:
@@ -83,6 +94,9 @@ class Reglages:
             "mode": self.mode,
             "flux_prix": self.flux_prix,
             "flux_disponibles": ["simule", "binance"],
+            "mt5_volume": round(self.mt5_volume, 2),
+            "mt5_sl_points": self.mt5_sl_points,
+            "mt5_tp_points": self.mt5_tp_points,
             "bornes": {cle: list(valeurs) for cle, valeurs in BORNES.items()},
             "modes_disponibles": list(MODES_CONNUS),
         }
@@ -126,6 +140,9 @@ class Reglages:
             "perte_max_journaliere": ("perte_max_journaliere", False),
             "trades_max_par_jour": ("trades_max_par_jour", True),
             "duree_expiration_s": ("duree_expiration_s", True),
+            "mt5_volume": ("mt5_volume", False),
+            "mt5_sl_points": ("mt5_sl_points", True),
+            "mt5_tp_points": ("mt5_tp_points", True),
         }
         for cle_ui, (champ, entier) in correspondances.items():
             if cle_ui in donnees:
