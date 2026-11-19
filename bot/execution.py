@@ -27,6 +27,15 @@ from typing import Any
 from .config import Settings
 from .journalisation import Journal, TradeJournalise
 from .reglages import Reglages
+
+
+def nom_strategie(settings) -> str:
+    """Retourne un libellé lisible de la stratégie active."""
+    if getattr(settings, "strategie", "ema") == "bollinger":
+        return f"Bollinger{settings.bollinger_periode}/k={settings.bollinger_k}"
+    return f"EMA{settings.ema_rapide}/{settings.ema_lente}"
+
+
 from .mt5_adapter import (
     envoyer_ordre_marche,
     fermer_position,
@@ -290,7 +299,7 @@ class MoteurExecution:
         self.journal.enregistrer(
             TradeJournalise(
                 horodatage_utc=Journal.maintenant(),
-                mode=self.mode_label,
+                mode=getattr(ordre, "ticket_mt5", 0) and "MT5_DEMO" or self.mode_label,
                 actif=ordre.actif,
                 direction=ordre.direction.value,
                 montant=ordre.montant,
@@ -300,7 +309,7 @@ class MoteurExecution:
                 resultat=resultat.resultat,
                 pnl=resultat.pnl,
                 solde_apres=round(nouveau_capital, 2),
-                strategie=f"EMA{self.settings.ema_rapide}/{self.settings.ema_lente}",
+                strategie=nom_strategie(self.settings),
                 commentaire=ordre.raison,
             )
         )
