@@ -573,8 +573,7 @@
   /* ------------------------------------------------------------------ */
   /* Fenêtres : réglages et connexion                                    */
   /* ------------------------------------------------------------------ */
-  let modeChoisi = "DEMO";
-  let fluxChoisi = "simule";
+
 
   function afficherMessage(id, texte) {
     const el = $(id);
@@ -606,68 +605,35 @@
     });
   });
 
-  /* --- Réglages (mise, garde-fous, mode) ----------------------------- */
-  function majSegments() {
-    $("rg-modes").querySelectorAll(".seg").forEach((b) => {
-      const actif = b.dataset.mode === modeChoisi;
-      b.classList.toggle("actif", actif);
-      b.setAttribute("aria-checked", actif ? "true" : "false");
-    });
-    const notes = {
-      DEMO: "Flux synthétique ou MT5 (.env) : aucun ordre réel.",
-      OBSERVATION:
-        "Indisponible : cette option reliait Pocket Option. Pas de bridge MT5 pour l'instant — l'option passera par le panneau MT5.",
-      REEL: "Verrouillé : aucun adaptateur d'exécution réelle n'est livré avec ce projet.",
-    };
-    $("rg-note").textContent = notes[modeChoisi] || "";
-  }
-
-  function majFlux() {
-    $("rg-flux").querySelectorAll(".seg").forEach((b) => {
-      const actif = b.dataset.flux === fluxChoisi;
-      b.classList.toggle("actif", actif);
-      b.setAttribute("aria-checked", actif ? "true" : "false");
-    });
-    $("rg-flux-note").textContent =
-      fluxChoisi === "binance"
-        ? "Prix réels publics Binance (BTC/USDT). Lecture seule : aucun compte requis, capital papier."
-        : "Générateur interne : aucun réseau, aucun compte. Les résultats ne décrivent pas le marché.";
-  }
-
-  async function rendreFluxActif() {
-    const el = $("rg-flux-actif");
-    try {
-      const r = await fetch("/api/mt5", { cache: "no-store" });
-      const d = r.ok ? await r.json() : null;
-      if (d && d.ouvert) {
-        const ordres = d.mt5_exe
-          ? "ORDRES DÉMO RÉELS sur signal"
-          : "lecture seule, aucune exécution";
-        el.innerHTML = `Flux actif : <b>MT5 · ${d.symbole}</b> — ${ordres}.`;
-        el.classList.add(d.mt5_exe ? "actif danger" : "actif");
-      } else {
-        el.innerHTML = `Flux actif : <b>simulation</b> — activez <code>MT5_DEMO=true</code> + redémarrez pour utiliser MT5.`;
-        el.classList.remove("actif", "danger");
-      }
-    } catch {
-      el.textContent = "Flux actif : inconnu (serveur injoignable).";
+  /* --- Réglages démo MT5 -------------------------------------------- */
+  function remplirOrdreMt5(data) {
+    if (!data) return;
+    const set = (id, texte) => { const el = $(id); if (el) el.textContent = texte; };
+    if (data.configure && data.ouvert) {
+      set("rg-lot", `${formatLot(data.mt5_volume ?? 0.01)} lot`);
+      set("rg-sl-tp", `SL ${data.mt5_sl_points ?? "?"} pts · TP ${data.mt5_tp_points ?? "?"} pts`);
+      set("rg-levier", data.levier ? `1:${data.levier}` : "—");
+      set("rg-compte", data.nom || `#${data.login}`);
+    } else {
+      set("rg-lot", "—");
+      set("rg-sl-tp", "—");
+      set("rg-levier", "—");
+      set("rg-compte", data.erreur ? "indisponible" : "MT5_DEMO=false (.env)");
     }
+  }
+
+  function formatLot(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toFixed(2) : String(v);
   }
 
   function remplirReglages(r) {
     if (!r) return;
-    modeChoisi = r.mode || "DEMO";
-    fluxChoisi = r.flux_prix || "simule";
-    $("rg-montant").value = r.montant_trade;
-    $("rg-plafond").value = r.taille_max_position;
-    $("rg-fraction").value = r.fraction_risque_pct;
-    $("rg-perte").value = r.perte_max_journaliere;
     $("rg-trades").value = r.trades_max_par_jour;
-    $("rg-expiration").value = r.duree_expiration_s;
-    $("rg-payout").value = r.payout_pct;
-    majSegments();
-    majFlux();
-    rendreFluxActif();
+    fetch("/api/mt5", { cache: "no-store" })
+      .then((r2) => r2.ok ? r2.json() : null)
+      .then((d) => { if (d) remplirOrdreMt5(d); })
+      .catch(() => {});
     afficherMessage("rg-erreur", "");
     afficherMessage("rg-ok", "");
   }
@@ -679,44 +645,10 @@
     } catch { /* console momentanément hors ligne */ }
   }
 
-  $("rg-modes").addEventListener("click", (ev) => {
-    const bouton = ev.target.closest(".seg");
-    if (!bouton) return;
-    const mode = bouton.dataset.mode;
-    if (mode === "REEL") {
-      afficherMessage(
-        "rg-erreur",
-        "Mode réel verrouillé : aucun adaptateur d'exécution n'est livré. " +
-          "Utilisez l'observation (données réelles, ordres papier) ou écrivez un courtier audité."
-      );
-      return;
-    }
-    modeChoisi = mode;
-    afficherMessage("rg-erreur", "");
-    afficherMessage("rg-ok", "");
-    majSegments();
-  });
-
-  $("rg-flux").addEventListener("click", (ev) => {
-    const bouton = ev.target.closest(".seg");
-    if (!bouton) return;
-    fluxChoisi = bouton.dataset.flux;
-    afficherMessage("rg-erreur", "");
-    afficherMessage("rg-ok", "");
-    majFlux();
-  });
-
   $("rg-enregistrer").addEventListener("click", async () => {
     const corps = {
-      montant_trade: $("rg-montant").value,
-      taille_max_position: $("rg-plafond").value,
-      fraction_risque_pct: $("rg-fraction").value,
-      perte_max_journaliere: $("rg-perte").value,
       trades_max_par_jour: $("rg-trades").value,
-      duree_expiration_s: $("rg-expiration").value,
-      payout_pct: $("rg-payout").value,
-      mode: modeChoisi,
-      flux_prix: fluxChoisi,
+      mode: "DEMO",
     };
     try {
       const r = await fetch("/api/reglages", {
@@ -730,8 +662,6 @@
         afficherMessage("rg-erreur", data.detail || "Réglages refusés.");
         return;
       }
-      // Remplir AVANT d'afficher le message : remplirReglages() nettoie les
-      // bandeaux, et écraserait la confirmation qu'on vient de poser.
       if (data.reglages) remplirReglages(data.reglages);
       afficherMessage("rg-erreur", "");
       afficherMessage("rg-ok", data.message || "Réglages appliqués.");

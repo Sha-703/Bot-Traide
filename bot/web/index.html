@@ -270,70 +270,25 @@
 
     <div class="modal-body">
       <fieldset class="groupe">
-        <legend>Mise et plafonds</legend>
-        <div class="champs">
-          <label class="champ">
-            <span>Mise par trade <em>$</em></span>
-            <input id="rg-montant" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" />
-            <small>Flux synthétique uniquement. Si MT5_EXE=true, c'est MT5_VOLUME (0,01 lot) qui fixe la taille MT5.</small>
-          </label>
-          <label class="champ">
-            <span>Plafond de position <em>$</em></span>
-            <input id="rg-plafond" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" />
-            <small>Flux synthétique uniquement. Pas applicable en MT5 (la position est 1 lot à chaque signal).</small>
-          </label>
-          <label class="champ">
-            <span>Risque par trade <em>%</em></span>
-            <input id="rg-fraction" type="number" min="0.1" max="10" step="0.1" inputmode="decimal" />
-            <small>Budget quotidien/distribution. Ignorable si vous ne comptez plus les positions papier.</small>
-          </label>
+        <legend>Ordre MT5</legend>
+        <div class="mt5-grid" style="grid-template-columns:repeat(2,1fr); margin:0; padding:0; border-top:0;">
+          <div class="mt5-item"><span>Lot</span><b id="rg-lot">—</b></div>
+          <div class="mt5-item"><span>SL / TP</span><b id="rg-sl-tp">—</b></div>
+          <div class="mt5-item"><span>Levier</span><b id="rg-levier">—</b></div>
+          <div class="mt5-item"><span>Compte</span><b id="rg-compte">—</b></div>
         </div>
+        <p class="hint">La taille et les limites sont dans <code>.env</code> — redémarrez la console pour appliquer un changement.</p>
       </fieldset>
 
       <fieldset class="groupe">
         <legend>Garde-fous</legend>
         <div class="champs">
           <label class="champ">
-            <span>Perte max / jour <em>$</em></span>
-            <input id="rg-perte" type="number" min="1" max="100000" step="1" inputmode="decimal" />
-            <small>Garde-fou journalier. Avec MT5_EXE, ce n'est qu'un indicateur — le SL de MT5 protège la position elle-même.</small>
-          </label>
-          <label class="champ">
             <span>Trades max / jour</span>
             <input id="rg-trades" type="number" min="1" max="500" step="1" inputmode="numeric" />
-            <small>Nombre max de signaux acceptés par l'axe papier. En MT5, seule la limite MT5_VOLUME s'applique réellement.</small>
-          </label>
-          <label class="champ">
-            <span>Expiration <em>s</em></span>
-            <input id="rg-expiration" type="number" min="5" max="3600" step="1" inputmode="numeric" />
-            <small>Durée de vie d'un ordre — flux synthétique uniquement.</small>
-          </label>
-          <label class="champ">
-            <span>Payout simulé <em>%</em></span>
-            <input id="rg-payout" type="number" min="5" max="99" step="0.5" inputmode="decimal" />
-            <small>Rendement fictif — n'existe pas en CFD Weltrade.</small>
+            <small>Signaux consécutifs — au-delà, la boucle se suspend d'elle-même jusqu'à demain.</small>
           </label>
         </div>
-      </fieldset>
-
-      <fieldset class="groupe">
-        <legend>Mode d'exécution</legend>
-        <div class="segmented" id="rg-modes" role="radiogroup" aria-label="Mode d'exécution">
-          <button type="button" class="seg" data-mode="DEMO" role="radio" aria-checked="false">Démo</button>
-          <button type="button" class="seg indisponible" data-mode="OBSERVATION" role="radio" aria-checked="false" disabled>Observation</button>
-          <button type="button" class="seg verrouille" data-mode="REEL" role="radio" aria-checked="false" disabled>Réel — verrouillé</button>
-        </div>
-        <p class="hint" id="rg-note">—</p>
-      </fieldset>
-
-      <fieldset class="groupe">
-        <legend>Flux de prix (laboratoire)</legend>
-        <div class="segmented" id="rg-flux" role="radiogroup" aria-label="Flux de prix">
-          <button type="button" class="seg" data-flux="simule" role="radio" aria-checked="false">Simulé</button>
-          <button type="button" class="seg" data-flux="binance" role="radio" aria-checked="false">Binance · BTC/USDT</button>
-        </div>
-        <p class="hint" id="rg-flux-note">—</p>
-        <p class="hint hint-actif" id="rg-flux-actif">Flux actif : —</p>
       </fieldset>
     </div>
 

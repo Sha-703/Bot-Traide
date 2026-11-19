@@ -266,6 +266,7 @@ def charger_config(chemin_env: Path | None = None) -> Settings:
         mt5_volume=mt5_volume,
         mt5_sl_points=mt5_sl_points,
         mt5_tp_points=mt5_tp_points,
+        mt5_exe=mt5_exe,
         actif=(os.getenv("ACTIF") or "EURUSD").strip().upper(),
         duree_expiration_s=_lire_int("DUREE_EXPIRATION_S", 60),
         payout=_lire_float("PAYOUT", 0.87),
