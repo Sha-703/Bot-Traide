@@ -93,6 +93,7 @@ class Settings:
     # sur le compte DÉMO (jamais sur un compte réel).
     mt5_demo: bool = False
     mt5_exe: bool = False
+    demarrer_instantane: bool = False
     mt5_symbole: str = "EURUSD_i"
     mt5_chemin_terminal: str | None = None
     mt5_volume: float = 0.01
@@ -156,6 +157,7 @@ class Settings:
             "actif_binance": self.actif_binance,
             "mt5_demo": self.mt5_demo,
             "mt5_exe": self.mt5_exe,
+            "mt5_demarrer_instantane": self.demarrer_instantane,
             "mt5_symbole": self.mt5_symbole,
             "strategie": self.strategie,
             "bollinger_periode": self.bollinger_periode,
@@ -210,6 +212,11 @@ def charger_config(chemin_env: Path | None = None) -> Settings:
     mt5_sl_points = _lire_int("MT5_SL_POINTS", 50)
     mt5_tp_points = _lire_int("MT5_TP_POINTS", 100)
     mt5_exe = (os.getenv("MT5_EXE") or "").strip().lower() in {
+        "true", "1", "oui", "yes", "on",
+    }
+    mt5_demarrer_instantane = (
+        os.getenv("BOLLINGER_DEMARRAGE_INSTANTE") or os.getenv("DEMARRAGE_INSTANTE") or ""
+    ).strip().lower() in {
         "true", "1", "oui", "yes", "on",
     }
     if mt5_exe and not mt5_demo:
@@ -267,6 +274,7 @@ def charger_config(chemin_env: Path | None = None) -> Settings:
         mt5_sl_points=mt5_sl_points,
         mt5_tp_points=mt5_tp_points,
         mt5_exe=mt5_exe,
+        demarrer_instantane=mt5_demarrer_instantane,
         actif=(os.getenv("ACTIF") or "EURUSD").strip().upper(),
         duree_expiration_s=_lire_int("DUREE_EXPIRATION_S", 60),
         payout=_lire_float("PAYOUT", 0.87),

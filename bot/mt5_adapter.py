@@ -27,6 +27,21 @@ from .connexion import SourceDePrix, Tick, EtatConnexion
 CHEMIN_PAR_DEFAUT = r"C:\Program Files\Weltrade MT5 Terminal\terminal64.exe"
 
 
+def fermer_bougies(symbole: str, n: int = 25, chemin: str | None = None) -> list[float]:
+    """Lit les `n` dernières bougies M1 fermées depuis MT5 (plus récente en dernier)."""
+    if n <= 0:
+        return []
+    mt5 = _connecter(chemin)  # exiger_demo = True
+    mt5.symbol_select(symbole, True)
+    rates = mt5.copy_rates_from_pos(symbole, mt5.TIMEFRAME_M1, 0, n + 1)
+    if rates is None or len(rates) == 0:
+        return []
+    # La plus récente (position 0) est en cours de formation — on l'ignore ;
+    # les bougies clôturées sont positions 1..len-1.
+    closes = [float(r[4]) for r in rates[1:]]
+    return closes[-max(1, int(n)):]
+
+
 class MT5Indisponible(RuntimeError):
     """Le terminal MT5 n'est pas installé, pas démarré, ou pas connecté."""
 

@@ -257,6 +257,47 @@ class StrategieBollinger:
     def requiert_minute(self) -> bool:
         return True
 
+    def precharger(self, closes: list[float]) -> None:
+        """Initialise la stratégie depuis l'historique MT5 (kickstart instantané).
+
+        `closes` est une liste ordonnée de clôtures de M1 (la plus récente en
+        dernier). Seules les `periode` dernières sont retenues. La minute en
+        cours reste à compléter par les ticks suivants.
+        """
+        if self.periode <= 0:
+            return
+        self._closes = list(closes[-self.periode:])
+        closes_utiles = self._closes
+        if not closes_utiles:
+            return
+        last = closes_utiles[-1]
+        mean = sum(closes_utiles) / len(closes_utiles)
+        sd = math.sqrt(
+            sum((x - mean) ** 2 for x in closes_utiles) / len(closes_utiles)
+        )
+        haute = mean + self.k * sd
+        basse = mean - self.k * sd
+        self._dernier_minute = -1  # on laisse le(s) tick(s) suivant(s) décider
+        self._close_minute = last
+        self.etat.points_chauffe = len(closes_utiles)
+        ecart = abs(last - mean) / mean * 10_000 if mean else 0.0
+        self.etat.ema_rapide = mean
+        self.etat.ema_lente = haute
+        self.etat.ecart_bps = ecart
+        self.etat.tendance = (
+            "haute" if last > haute else "basse" if last < basse else "neutre"
+        )
+        # Ré-remplir l'historique de visualisation pour un affichage cohérent.
+        dq = self.etat.historique_prix
+        dq.clear()
+        dq.extend(closes_utiles)
+        dq_r = self.etat.historique_rapide
+        dq_r.clear()
+        dq_r.extend([mean] * len(closes_utiles))
+        dq_l = self.etat.historique_lente
+        dq_l.clear()
+        dq_l.extend([haute] * len(closes_utiles))
+
     def _archiver_minute(self, minute_close: float) -> None:
         self._closes.append(minute_close)
         if len(self._closes) > self.periode:

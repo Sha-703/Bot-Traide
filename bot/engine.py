@@ -75,6 +75,27 @@ class Moteur:
                 k=settings.bollinger_k,
                 cooldown_secondes=settings.cooldown_signal_s,
             )
+            # Démarrage instantané : précharger 25 bougies M1 depuis MT5.
+            if getattr(settings, "demarrer_instantane", False):
+                try:
+                    from .mt5_adapter import fermer_bougies
+                    closes = fermer_bougies(
+                        settings.mt5_symbole,
+                        n=settings.bollinger_periode + 1,
+                        chemin=settings.mt5_chemin_terminal,
+                    )
+                    self.strategie.precharger(closes)
+                    if self.journal:
+                        self.journal.evenement(
+                            "info", "moteur",
+                            f"Préchargement Bollinger : {len(closes)} bougies M1 lues.",
+                        )
+                except Exception as exc:
+                    if self.journal:
+                        self.journal.evenement(
+                            "erreur", "mt5",
+                            f"Préchargement Bollinger impossible : {type(exc).__name__}",
+                        )
         else:
             raise RuntimeError(
                 f"STRATEGIE={settings.strategie!r} inconnue : "
@@ -612,7 +633,7 @@ class Moteur:
         self.alerte(
             "info",
             f"Démarrage en mode {self.mode} sur {self.actif} "
-            f"(EMA{self.settings.ema_rapide}/{self.settings.ema_lente}). "
+            f"(stratégie {self.strategie.__class__.__name__}). "
             f"Chauffe : {self.strategie.etat.points_requis} points avant le premier signal.",
         )
         self._diffuser()
